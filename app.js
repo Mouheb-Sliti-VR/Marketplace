@@ -46,6 +46,16 @@ app.get('/files/:filename', async (req, res) => {
     }
 });
 
+app.get('/files', async (req, res) => {
+    try {
+        const allMedia = await Media.find({});
+        res.json(allMedia); // Send JSON response with all media data
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Server Error');
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
