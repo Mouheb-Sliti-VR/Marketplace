@@ -3,95 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registration as a partner</title>
+    <title>User Registration</title>
     <style>
+        /* CSS styles */
         body {
             font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
         }
+
         .container {
-            background-color: #fff;
+            max-width: 400px;
+            margin: 50px auto;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
         }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
+
+        .form-group {
+            margin-bottom: 15px;
         }
+
         label {
             display: block;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
+
         input[type="email"],
-        input[type="password"],
-        input[type="text"] {
+        input[type="text"],
+        input[type="password"] {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 20px;
+            padding: 8px;
             border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
+            border-radius: 5px;
         }
-        button[type="submit"] {
-            width: 100%;
-            padding: 10px;
+
+        button {
             background-color: #007bff;
             color: #fff;
             border: none;
-            border-radius: 4px;
+            padding: 10px 20px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
         }
-        button[type="submit"]:hover {
+
+        button:hover {
             background-color: #0056b3;
+        }
+
+        p {
+            margin-top: 20px;
+        }
+
+        a {
+            color: #007bff;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Registration</h1>
-        <form action="http://localhost:3000/auth/register" method="POST" id="registrationForm">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
-            <label for="companyName">Company Name:</label>
-            <input type="text" id="companyName" name="companyName" required>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
+        <h1>User Registration</h1>
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="companyName">Company Name:</label>
+                <input type="text" id="companyName" name="companyName" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
             <button type="submit">Register</button>
         </form>
+        <p id="message"></p>
+        <p>Already have an account? <a href="login.html">Login here</a></p>
     </div>
 
     <script>
-        // Add event listener for form submission
-        document.getElementById('registrationForm').addEventListener('submit', async function(event) {
-            event.preventDefault(); // Prevent default form submission
-            const form = event.target; // Get reference to the form
-            
+        // JavaScript code
+        document.getElementById('registerForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(this);
+            const requestData = {
+                email: formData.get('email'),
+                companyName: formData.get('companyName'),
+                password: formData.get('password')
+            };
+
             try {
-                const formData = new FormData(form); // Create FormData object with form data
-                const response = await fetch(form.action, { // Send POST request to registration endpoint
+                const response = await fetch('/auth/register', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
                 });
 
+                const data = await response.json();
+                document.getElementById('message').innerText = data.message;
                 if (response.ok) {
-                    alert('Registration successful!'); // Show success message
-                    window.location.href = '/login.html'; // Redirect to login page
-                } else {
-                    const errorMessage = await response.text(); // Get error message from response
-                    alert(`Registration failed: ${errorMessage}`);
-                    Debug.console(errorMessage); // Show error message
+                    // Registration successful, redirect to login page
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 1000); // Redirect after 2 seconds
                 }
             } catch (error) {
-                console.error('Error during registration:', error);
-                alert('Registration failed. Please try again later.'); // Show generic error message
+                console.error('Error:', error);
+                document.getElementById('message').innerText = 'Registration failed. Please try again later.';
             }
         });
     </script>
