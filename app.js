@@ -19,6 +19,9 @@ mongoose
 app.use("/auth", registerRoute);
 app.use("/media", latestMediaURLsRoute);
 
+app.get("/health-check", (req, res) => {
+  res.status(200).send("up");
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

@@ -46,9 +46,9 @@ async function getLatestMediaURLsForUser(companyName) {
         if (!user) {
             throw new Error('User not found');
         }
-        const latestImage1Url = user.image1 ? `http://localhost:3000/media/${user.image1.filename}` : null;
-        const latestImage2Url = user.image2 ? `http://localhost:3000/media/${user.image2.filename}` : null;
-        const latestVideoUrl = user.video ? `http://localhost:3000/media/${user.video.filename}` : null;
+        const latestImage1Url = user.image1 ? `/media/${user.image1.filename}` : null;
+        const latestImage2Url = user.image2 ? `/media/${user.image2.filename}` : null;
+        const latestVideoUrl = user.video ? `/media/${user.video.filename}` : null;
         return { latestImage1Url, latestImage2Url, latestVideoUrl };
     } catch (error) {
         console.error(error);
