@@ -1,12 +1,14 @@
 // app.js
 
 require("dotenv").config();
+const cors = require('cors');
 const express = require("express");
 const mongoose = require("mongoose");
 const registerRoute = require("./Routes/AuthenticationRoute");
 const latestMediaURLsRoute = require("./Routes/MediaRoute");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.DB_URI;

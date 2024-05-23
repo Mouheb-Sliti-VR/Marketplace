@@ -1,0 +1,166 @@
+openapi: 3.0.0
+info:
+  title: Marketplace Backend API
+  description: Documentation for the backend API of the Marketplace application
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /auth/register:
+    post:
+      summary: Register a new account
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                companyName:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Email already exists
+        '500':
+          description: Registration failed
+  /auth/login:
+    post:
+      summary: Login to an existing account
+      operationId: loginAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+        '401':
+          description: Invalid email or password
+        '500':
+          description: Login failed
+  /media/uploadMedia:
+    post:
+      summary: Upload media (image or video)
+      operationId: uploadMedia
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                media:
+                  type: string
+                  format: binary
+                fieldName:
+                  type: string
+                  enum: [image1, image2, video]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Media uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  image1:
+                    type: string
+                    description: URL of the uploaded image 1
+                  image2:
+                    type: string
+                    description: URL of the uploaded image 2
+                  video:
+                    type: string
+                    description: URL of the uploaded video
+        '400':
+          description: fieldName is required in the request body
+        '500':
+          description: Server error
+  /media/latestMediaURLs:
+    post:
+      summary: Get the latest media URLs for a company
+      operationId: getLatestMediaURLs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                companyName:
+                  type: string
+      responses:
+        '200':
+          description: Retrieved latest media URLs successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  latestImage1Url:
+                    type: string
+                    description: URL of the latest image 1
+                  latestImage2Url:
+                    type: string
+                    description: URL of the latest image 2
+                  latestVideoUrl:
+                    type: string
+                    description: URL of the latest video
+        '500':
+          description: Server error
+  /media/{filename}:
+    get:
+      summary: Download a media file
+      operationId: downloadMedia
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media file downloaded successfully
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Media not found
+        '500':
+          description: Server error
+security:
+  - BearerAuth: []
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer

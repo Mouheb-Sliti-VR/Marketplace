@@ -58,56 +58,62 @@ router.post("/login", async (req, res) => {
   }
 });
 router.get("/usersWithPublishedFiles", async (req, res) => {
-    try {
-      // Find users who have at least one of the media fields populated
-      const usersWithFiles = await User.find({
-        $or: [
-          { image1: { $exists: true } },
-          { image2: { $exists: true } },
-          { video: { $exists: true } },
-        ],
-      });
-  
-      // Total number of partners with uploaded files
-      const totalPartners = usersWithFiles.length;
-  
-      // Simplify the user data and construct media URLs
-      const simplifiedUsers = usersWithFiles.map(async user => {
-        const image1Url = user.image1
-          ? `http://localhost:3000/media/${await getMediaFilename(user.image1)}`
-          : null;
-        const image2Url = user.image2
-          ? `http://localhost:3000/media/${await getMediaFilename(user.image2)}`
-          : null;
-        const videoUrl = user.video
-          ? `http://localhost:3000/media/${await getMediaFilename(user.video)}`
-          : null;
-  
-        return {
-          companyName: user.companyName,
-          media: {
-            Image1Url: image1Url,
-            Image2Url: image2Url,
-            VideoUrl: videoUrl
-          }
-        };
-      });
-  
-      // Wait for all promises to resolve
-      const usersWithUrls = await Promise.all(simplifiedUsers);
-  
-      // Construct the response object
-      const response = {
-        totalPartners,
-        users: usersWithUrls
+  try {
+    // Find users who have at least one of the media fields populated
+    const usersWithFiles = await User.find({
+      $or: [
+        { image1: { $exists: true } },
+        { image2: { $exists: true } },
+        { video: { $exists: true } },
+        { logo: { $exists: true } }, // Add condition for logo
+      ],
+    });
+
+    // Total number of partners with uploaded files
+    const totalPartners = usersWithFiles.length;
+
+    // Simplify the user data and construct media URLs
+    const simplifiedUsers = usersWithFiles.map(async user => {
+      const image1Url = user.image1
+        ? `http://localhost:3000/media/${await getMediaFilename(user.image1)}`
+        : null;
+      const image2Url = user.image2
+        ? `http://localhost:3000/media/${await getMediaFilename(user.image2)}`
+        : null;
+      const videoUrl = user.video
+        ? `http://localhost:3000/media/${await getMediaFilename(user.video)}`
+        : null;
+      const logoUrl = user.logo
+        ? `http://localhost:3000/media/${await getMediaFilename(user.logo)}`
+        : null; // Add logo URL
+      
+      return {
+        companyName: user.companyName,
+        Logo : logoUrl,
+        uploadedMedia: {
+          Image1: image1Url,
+          Image2: image2Url,
+          Video: videoUrl,
+        }
       };
-  
-      res.json(response);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
+    });
+
+    // Wait for all promises to resolve
+    const usersWithUrls = await Promise.all(simplifiedUsers);
+
+    // Construct the response object
+    const response = {
+      users: usersWithUrls,
+      totalPartners
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
   
   // Function to get media filename from the media ID
   async function getMediaFilename(mediaId) {

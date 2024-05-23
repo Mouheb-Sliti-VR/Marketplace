@@ -19,6 +19,7 @@ router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
 
         // Construct the response object with updated user details
         const response = {
+            logo: updatedUser.logo,
             image1: updatedUser.image1,
             image2: updatedUser.image2,
             video: updatedUser.video
