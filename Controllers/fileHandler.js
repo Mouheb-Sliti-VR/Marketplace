@@ -42,10 +42,11 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
 async function getLatestMediaURLsForUser(companyName) {
     try {
-        const user = await User.findOne({ companyName }).populate('image1').populate('image2').populate('video');
+        const user = await User.findOne({ companyName }).populate('logo').populate('image1').populate('image2').populate('video');
         if (!user) {
             throw new Error('User not found');
         }
+        const LogoUrl = user.logo ? `${user.logo.filename}` : null;
         const latestImage1Url = user.image1 ? `${user.image1.filename}` : null;
         const latestImage2Url = user.image2 ? `${user.image2.filename}` : null;
         const latestVideoUrl = user.video ? `https://marketplace-fmjs.onrender.com/media/${user.video.filename}` : null;
