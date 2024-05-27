@@ -65,7 +65,7 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
         { image1: { $exists: true } },
         { image2: { $exists: true } },
         { video: { $exists: true } },
-        { logo: { $exists: true } }, // Add condition for logo
+        { logo: { $exists: true } }, 
       ],
     });
 
@@ -87,15 +87,7 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
         ? `http://localhost:3000/media/${await getMediaFilename(user.logo)}`
         : null; // Add logo URL
       
-      return {
-        companyName: user.companyName,
-        Logo : logoUrl,
-        uploadedMedia: {
-          Image1: image1Url,
-          Image2: image2Url,
-          Video: videoUrl,
-        }
-      };
+     c
     });
 
     // Wait for all promises to resolve

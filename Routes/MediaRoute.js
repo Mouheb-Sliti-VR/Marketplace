@@ -16,7 +16,6 @@ router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
 
         // Save the uploaded file to the database and update the user document
         const updatedUser = await saveFileToDBAndUpdateUser(req, fieldName);
-
         // Construct the response object with updated user details
         const response = {
             logo: updatedUser.logo,

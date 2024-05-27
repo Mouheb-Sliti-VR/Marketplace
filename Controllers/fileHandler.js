@@ -47,8 +47,8 @@ async function getLatestMediaURLsForUser(companyName) {
             throw new Error('User not found');
         }
         const LogoUrl = user.logo ? `https://marketplace-fmjs.onrender.com/media/${user.logo.filename}` : null;
-        const latestImage1Url = user.image1 ? `${user.image1.filename}` : null;
-        const latestImage2Url = user.image2 ? `${user.image2.filename}` : null;
+        const latestImage1Url = user.image1 ? `https://marketplace-fmjs.onrender.com/media/${user.image1.filename}` : null;
+        const latestImage2Url = user.image2 ? `https://marketplace-fmjs.onrender.com/media/${user.image2.filename}` : null;
         const latestVideoUrl = user.video ? `https://marketplace-fmjs.onrender.com/media/${user.video.filename}` : null;
         return { Logo:LogoUrl, Image1:latestImage1Url, Image2:latestImage2Url, Video: latestVideoUrl };
     } catch (error) {
