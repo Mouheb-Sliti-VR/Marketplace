@@ -1,11 +1,9 @@
-// AuthenticationRoute.js
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
-
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -17,8 +15,10 @@ router.post("/register", async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
+
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
+
     // Create new user
     const user = new User({ email, companyName, password: hashedPassword });
     await user.save();
@@ -33,18 +33,21 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).send("Invalid email or password");
     }
+
     // Compare passwords
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).send("Invalid email or password");
     }
+
     // Generate JWT token
-    const token = await jwt.sign(
+    const token = jwt.sign(
       { email: user.email, companyName: user.companyName },
       process.env.SECRET_KEY
     );
@@ -57,6 +60,8 @@ router.post("/login", async (req, res) => {
     res.status(500).send("Login failed");
   }
 });
+
+// Route to get users with published files
 router.get("/usersWithPublishedFiles", async (req, res) => {
   try {
     // Find users who have at least one of the media fields populated
@@ -65,7 +70,7 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
         { image1: { $exists: true } },
         { image2: { $exists: true } },
         { video: { $exists: true } },
-        { logo: { $exists: true } }, 
+        { logo: { $exists: true } },
       ],
     });
 
@@ -73,25 +78,14 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
     const totalPartners = usersWithFiles.length;
 
     // Simplify the user data and construct media URLs
-    const simplifiedUsers = usersWithFiles.map(async user => {
-      const image1Url = user.image1
-        ? `http://localhost:3000/media/${await getMediaFilename(user.image1)}`
-        : null;
-      const image2Url = user.image2
-        ? `http://localhost:3000/media/${await getMediaFilename(user.image2)}`
-        : null;
-      const videoUrl = user.video
-        ? `http://localhost:3000/media/${await getMediaFilename(user.video)}`
-        : null;
-      const logoUrl = user.logo
-        ? `http://localhost:3000/media/${await getMediaFilename(user.logo)}`
-        : null; // Add logo URL
-      
-     c
-    });
+    const usersWithUrls = await Promise.all(usersWithFiles.map(async user => {
+      const image1Url = user.image1 ? `http://localhost:3000/media/${await getMediaFilename(user.image1)}` : null;
+      const image2Url = user.image2 ? `http://localhost:3000/media/${await getMediaFilename(user.image2)}` : null;
+      const videoUrl = user.video ? `http://localhost:3000/media/${await getMediaFilename(user.video)}` : null;
+      const logoUrl = user.logo ? `http://localhost:3000/media/${await getMediaFilename(user.logo)}` : null;
 
-    // Wait for all promises to resolve
-    const usersWithUrls = await Promise.all(simplifiedUsers);
+      return { image1Url, image2Url, videoUrl, logoUrl };
+    }));
 
     // Construct the response object
     const response = {
@@ -106,13 +100,10 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
   }
 });
 
-  
-  // Function to get media filename from the media ID
-  async function getMediaFilename(mediaId) {
-    const media = await Media.findById(mediaId);
-    return media ? media.filename : null;
-  }
-  
-  
+// Function to get media filename from the media ID
+async function getMediaFilename(mediaId) {
+  const media = await Media.findById(mediaId);
+  return media ? media.filename : null;
+}
 
 module.exports = router;

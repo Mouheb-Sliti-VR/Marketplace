@@ -55,7 +55,6 @@ router.post('/latestMediaURLs', async (req, res) => {
       if (!media) {
         return res.status(404).send('Media not found');
       }
-
       // Set the appropriate content type based on the media type
       res.set('Content-Type', media.type);
       
