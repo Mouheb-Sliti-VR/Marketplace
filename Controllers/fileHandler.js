@@ -46,11 +46,11 @@ async function getLatestMediaURLsForUser(companyName) {
         if (!user) {
             throw new Error('User not found');
         }
-        const LogoUrl = user.logo ? `${user.logo.filename}` : null;
+        const LogoUrl = user.logo ? `https://marketplace-fmjs.onrender.com/media/${user.logo.filename}` : null;
         const latestImage1Url = user.image1 ? `${user.image1.filename}` : null;
         const latestImage2Url = user.image2 ? `${user.image2.filename}` : null;
         const latestVideoUrl = user.video ? `https://marketplace-fmjs.onrender.com/media/${user.video.filename}` : null;
-        return { latestImage1Url, latestImage2Url, latestVideoUrl };
+        return { Logo:LogoUrl, Image1:latestImage1Url, Image2:latestImage2Url, Video: latestVideoUrl };
     } catch (error) {
         console.error(error);
         throw error;
