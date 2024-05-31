@@ -8,7 +8,15 @@ const registerRoute = require("./Routes/AuthenticationRoute");
 const latestMediaURLsRoute = require("./Routes/MediaRoute");
 
 const app = express();
-app.use(cors());
+
+const corsOptions = {
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // Enable CORS credentials (cookies, authorization headers, etc.)
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.DB_URI;
