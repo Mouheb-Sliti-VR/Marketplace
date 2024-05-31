@@ -16,6 +16,11 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Email already exists" });
     }
 
+    // Ensure that password is provided
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
     // Generate salt rounds
     const saltRounds = 10;
 
