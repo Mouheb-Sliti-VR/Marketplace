@@ -112,6 +112,64 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
 async function getMediaFilename(mediaId) {
   const media = await Media.findById(mediaId);
   return media ? media.filename : null;
-}
+};
+
+// Route to show user's balance
+router.get("/show-balance", async (req, res) => {
+  try {
+    // Find user by email
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    res.json({ balance: user.balance });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Route to add more balance to user's account
+router.post("/add-balance", async (req, res) => {
+  try {
+    const { email, amount } = req.body;
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    // Add balance
+    user.balance += amount;
+    await user.save();
+    res.json({ message: "Balance added successfully", balance: user.balance });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Route to decrease balance from user's account
+router.post("/decrease-balance", async (req, res) => {
+  try {
+    const { email, amount } = req.body;
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    // Check if user has sufficient balance
+    if (user.balance < amount) {
+      return res.status(400).send("Insufficient balance");
+    }
+    // Decrease balance
+    user.balance -= amount;
+    await user.save();
+    res.json({ message: "Balance decreased successfully", balance: user.balance });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 module.exports = router;
