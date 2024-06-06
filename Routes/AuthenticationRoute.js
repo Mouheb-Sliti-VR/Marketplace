@@ -62,6 +62,7 @@ router.post("/login", async (req, res) => {
     res.send({
       message: `${user.companyName} has successfully connected with this token`,
       token,
+      balance : user.balance
     });
   } catch (error) {
     console.error(error);
@@ -115,7 +116,7 @@ async function getMediaFilename(mediaId) {
 };
 
 // Route to show user's balance
-router.get("/show-balance", async (req, res) => {
+router.post("/show-balance", async (req, res) => {
   try {
     // Find user by email
     const user = await User.findOne({ email: req.body.email });
@@ -128,6 +129,7 @@ router.get("/show-balance", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 // Route to add more balance to user's account
 router.post("/add-balance", async (req, res) => {
