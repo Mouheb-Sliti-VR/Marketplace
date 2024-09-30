@@ -98,4 +98,3 @@ module.exports = {
     getAll3DModelURLs,
     download3DModelByName,
 };
-git add . 
