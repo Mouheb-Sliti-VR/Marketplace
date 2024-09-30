@@ -66,13 +66,14 @@ const save3DModelToDB = async (req) => {
 // Fetch all 3D model URLs
 const getAll3DModelURLs = async () => {
     const models = await ThreeDModel.find(); // Get all models from ThreeDModel
-    const baseUrl = 'https://marketplace-1-5g2u.onrender.com/uploads/3dmodels/';
+    const baseUrl = 'https://marketplace-1-5g2u.onrender.com/3d/download/';
     
     return models.map(model => ({
         filename: model.filename,
         url: `${baseUrl}${model.filename}`
     }));
 };
+
 
 // Function to download a 3D model by filename
 const download3DModelByName = (req, res) => {
@@ -97,3 +98,4 @@ module.exports = {
     getAll3DModelURLs,
     download3DModelByName,
 };
+git add . 
