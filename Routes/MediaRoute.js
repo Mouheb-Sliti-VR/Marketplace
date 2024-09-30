@@ -1,9 +1,8 @@
-// MediaRoute.js
 const express = require('express');
 const router = express.Router();
-const { uploadFile, saveFileToDBAndUpdateUser, getLatestMediaURLsForUser }  = require('../Controllers/fileHandler');
+const { uploadFile, saveFileToDBAndUpdateUser, getLatestMediaURLsForUser } = require('../Controllers/fileHandler');
 const authenticateToken = require('../Middleware/authMiddleware'); // Import the authentication middleware
-const Media = require ("../Models/mediaModel")
+const Media = require("../Models/mediaModel");
 
 // Handle upload of media and update user
 router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
@@ -46,27 +45,24 @@ router.post('/latestMediaURLs', async (req, res) => {
     }
 });
 
- // Route to serve media files
- router.get('/:filename', async (req, res) => {
+// Route to serve media files
+router.get('/:filename', async (req, res) => {
     try {
-      const filename = req.params.filename;
-      const media = await Media.findOne({ filename });
+        const filename = req.params.filename;
+        const media = await Media.findOne({ filename });
 
-      if (!media) {
-        return res.status(404).send('Media not found');
-      }
-      // Set the appropriate content type based on the media type
-      res.set('Content-Type', media.type);
-      
-      // Send the media file data in the response
-      res.send(media.data);
+        if (!media) {
+            return res.status(404).send('Media not found');
+        }
+        // Set the appropriate content type based on the media type
+        res.set('Content-Type', media.type);
+        
+        // Send the media file data in the response
+        res.send(media.data);
     } catch (error) {
-      console.error(error);
-      res.status(500).send('Server Error');
+        console.error(error);
+        res.status(500).send('Server Error');
     }
-  });
-  
-
-
+});
 
 module.exports = router;

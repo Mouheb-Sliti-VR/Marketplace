@@ -4,6 +4,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const registerRoute = require("./Routes/AuthenticationRoute");
 const latestMediaURLsRoute = require("./Routes/MediaRoute");
+const ThreeDRoute = require ("./Routes/3dMediaRoute");
 
 const app = express();
 
@@ -26,6 +27,7 @@ mongoose
 
 app.use("/auth", registerRoute);
 app.use("/media", latestMediaURLsRoute);
+app.use("/3d", ThreeDRoute);
 
 app.get("/health-check", (req, res) => {
   res.status(200).send("up");
