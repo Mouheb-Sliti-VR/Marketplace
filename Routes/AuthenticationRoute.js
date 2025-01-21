@@ -4,35 +4,58 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
+const validator = require('validator');
+
+
+// Function to get media filename from the media ID
+async function getMediaFilename(mediaId) {
+  const media = await Media.findById(mediaId);
+  return media ? media.filename : null;
+};
 
 // Registration route
 router.post("/register", async (req, res) => {
   try {
+    console.log("Register request received:", req.body);
+
     const { email, companyName, password } = req.body;
+
+    // Validate email format using regular expression or a validator library
+    if (!validator.isEmail(email)) {
+      console.warn(`Registration failed: Invalid email format: ${email}`);
+      return res.status(400).json({ message: "Invalid email format" });
+    }
 
     // Check if the email is already registered
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      console.warn(`Registration failed: Email '${email}' already exists.`);
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // Ensure that password is provided
+    // Ensure that password is provided and has a minimum length
     if (!password) {
+      console.warn("Registration failed: Password is missing.");
       return res.status(400).json({ message: "Password is required" });
     }
 
-    // Generate salt rounds
-    const saltRounds = 10;
+    if (password.length < 6) {
+      console.warn(`Registration failed: Password '${password}' is too short.`);
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
 
-    // Hash the password
+    console.log(`Hashing password for user: ${email}`);
+    const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create new user
-    const user = new User({ email, companyName, password: hashedPassword });
+    console.log(`Creating user with email: ${email}`);
+    const user = new User({ email, companyName, password: hashedPassword, balance:500});
     await user.save();
+
+    console.info(`User registered successfully: ${email}`);
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
-    console.error(error);
+    console.error("Registration failed with error:", error);
     res.status(500).json({ message: "Registration failed" });
   }
 });
@@ -40,36 +63,51 @@ router.post("/register", async (req, res) => {
 // Login route
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+      console.log("Login request received:", req.body);
+      const { email, password } = req.body;
 
-    // Find user by email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).send("Invalid email or password");
-    }
+      console.log(`Looking up user with email: ${email}`);
+      const user = await User.findOne({ email });
 
-    // Compare passwords
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).send("Invalid email or password");
-    }
+      if (!user) {
+          console.warn(`Login failed: User with email '${email}' not found.`);
+          return res.status(401).send("Invalid email or password");
+      }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { email: user.email, companyName: user.companyName },
-      process.env.SECRET_KEY
-    );
-    res.send({
-      message: `${user.companyName} has successfully connected with this token`,
-      token,
-      balance : user.balance
-    });
+      console.log(`User found: ${user.email}, verifying password.`);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+          console.warn(`Login failed: Invalid password for user '${email}'.`);
+          return res.status(401).send("Invalid email or password");
+      }
+
+      console.log(`Password verified for user: ${email}. Generating token.`);
+      const token = jwt.sign(
+          { email: user.email, companyName: user.companyName },
+          process.env.SECRET_KEY,
+          { expiresIn: '2w' } // Optional: Token expiration time
+      );
+
+      // Log all relevant information
+      console.info(`User logged in successfully: ${email}`);
+      console.info(`Company Name: ${user.companyName}`);
+      console.info(`Token: ${token}`);
+      console.info(`Balance: ${user.balance}`);
+
+      // Send response with all relevant information
+      res.send({
+          message: `${user.companyName} has successfully connected with this token`,
+          token,
+          balance: user.balance,
+          email: user.email, // Include email in the response if needed
+          companyName: user.companyName // Include company name in the response if needed
+      });
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Login failed");
+      console.error("Login failed with error:", error);
+      res.status(500).send("Login failed");
   }
 });
-
 // Route to get users with published files
 router.get("/usersWithPublishedFiles", async (req, res) => {
   try {
@@ -109,12 +147,6 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
   }
 });
 
-// Function to get media filename from the media ID
-async function getMediaFilename(mediaId) {
-  const media = await Media.findById(mediaId);
-  return media ? media.filename : null;
-};
-
 // Route to show user's balance
 router.post("/show-balance", async (req, res) => {
   try {
@@ -129,7 +161,6 @@ router.post("/show-balance", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 // Route to add more balance to user's account
 router.post("/add-balance", async (req, res) => {

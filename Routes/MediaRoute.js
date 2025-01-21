@@ -1,21 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const { uploadFile, saveFileToDBAndUpdateUser, getLatestMediaURLsForUser } = require('../Controllers/fileHandler');
-const authenticateToken = require('../Middleware/authMiddleware'); // Import the authentication middleware
-const Media = require("../Models/mediaModel");
+const authenticateToken = require('../Middleware/authMiddleware'); // Authentication middleware
+const Media = require('../Models/mediaModel');
 
 // Handle upload of media and update user
-router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
+router.post('/uploadMedia', authenticateToken,uploadFile, async (req, res) => {
     try {
-        const fieldName = req.body.fieldName;
+        const { fieldName } = req.body;
 
         if (!fieldName) {
-            throw new Error('fieldName is required in the request body');
+            return res.status(400).json({ error: 'fieldName is required in the request body' });
         }
 
-        // Save the uploaded file to the database and update the user document
+        // Save file to the DB and update the user with the media reference
         const updatedUser = await saveFileToDBAndUpdateUser(req, fieldName);
-        // Construct the response object with updated user details
+
+        // Respond with the updated user data (media references)
         const response = {
             logo: updatedUser.logo,
             image1: updatedUser.image1,
@@ -23,42 +24,43 @@ router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
             video: updatedUser.video
         };
 
-        // Send back the updated user document
         res.json(response);
-
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: error.message || 'Server error' });
     }
 });
 
-// Handle request for latest media URLs
 router.post('/latestMediaURLs', async (req, res) => {
-    const { companyName } = req.body;
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required in the request body' });
+    }
 
     try {
-        const mediaURLs = await getLatestMediaURLsForUser(companyName);
+        const mediaURLs = await getLatestMediaURLsForUser(email); // Pass email instead of companyName
         res.json(mediaURLs);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: error.message || 'Server error' });
     }
 });
 
-// Route to serve media files
-router.get('/:filename', async (req, res) => {
+
+// Route to serve media files by their secureId
+router.get('/:id', async (req, res) => {
     try {
-        const filename = req.params.filename;
-        const media = await Media.findOne({ filename });
+        const { id } = req.params;
+        const media = await Media.findOne({ secureId: id });
 
         if (!media) {
             return res.status(404).send('Media not found');
         }
-        // Set the appropriate content type based on the media type
-        res.set('Content-Type', media.type);
-        
-        // Send the media file data in the response
-        res.send(media.data);
+
+        // Set correct MIME type and send the file
+        res.set('Content-Type', media.mimeType);
+        res.send(media.data); // Send the media binary data
     } catch (error) {
         console.error(error);
         res.status(500).send('Server Error');

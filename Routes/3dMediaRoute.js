@@ -19,8 +19,6 @@ router.post('/upload3dmodel', upload3DModel, async (req, res) => {
     }
 });
 
-
-
 // Fetch all 3D model URLs
 router.get('/get3dmodels', async (req, res) => {
     try {
