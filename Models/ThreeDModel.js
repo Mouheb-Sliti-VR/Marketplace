@@ -11,7 +11,7 @@ const threeDModelSchema = new mongoose.Schema({
     filename: {
         type: String,
         required: true,
-        unique: true, // Ensure filenames are unique
+        unique: true, 
     },
     filepath: {
         type: String,
