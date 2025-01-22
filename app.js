@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const registerRoute = require("./Routes/AuthenticationRoute");
 const latestMediaURLsRoute = require("./Routes/MediaRoute");
 const ThreeDRoute = require ("./Routes/3dMediaRoute");
+const path = require('path');  // Import path module
 
 const app = express();
 
@@ -17,6 +18,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Serve static files from the 'uploads' folder
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.DB_URI;
 
