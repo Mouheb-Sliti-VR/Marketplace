@@ -4,66 +4,50 @@ const fs = require('fs').promises; // Use async fs API
 const ThreeDModel = require("../Models/ThreeDModel");
 const { v4: uuidv4 } = require('uuid'); // Use UUID for unique identifiers
 
-// Set up storage configuration for 3D models using diskStorage
-const storage = multer.diskStorage({
-    destination: async (req, file, cb) => {
-        try {
+const upload = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
             const uploadPath = path.join(__dirname, '../uploads/3dmodels');
-            
-            // Ensure directory exists asynchronously
-            await fs.mkdir(uploadPath, { recursive: true });
+            if (!fs.existsSync(uploadPath)) {
+                fs.mkdirSync(uploadPath, { recursive: true });
+            }
             cb(null, uploadPath);
-        } catch (err) {
-            cb(new Error(`Failed to create directory: ${err.message}`));
+        },
+        filename: function (req, file, cb) {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            cb(null, `${uniqueSuffix}-${file.originalname}`);
         }
+    }),
+    fileFilter: (req, file, cb) => {
+        const allowedMimeTypes = [
+            'model/obj', 'model/gltf+json', 'model/gltf-binary',
+            'application/x-fbx', 'application/sla', 'application/stl',
+            'application/octet-stream'
+        ];
+        cb(null, allowedMimeTypes.includes(file.mimetype) || file.mimetype.startsWith('model/'));
     },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = uuidv4(); // Use UUID to generate unique filenames
-        const sanitizedFilename = file.originalname.replace(/\s+/g, '_'); // Replace spaces with underscores for filename sanitization
-        cb(null, `${uniqueSuffix}-${sanitizedFilename}`);
+    // Normalize file paths to Windows-style after upload
+    transformFilepath: (req, file) => {
+        file.path = file.path.replace(/\//g, '\\');
     }
-});
-
-// File filter for 3D model formats (allow more types if necessary)
-const fileFilter = (req, file, cb) => {
-    const allowedMimeTypes = [
-        'model/gltf-binary',         // GLB
-        'model/obj',                 // OBJ
-        'model/gltf+json',           // GLTF (JSON)
-        'model/gltf-binary',         // GLTF (Binary)
-        'application/x-fbx',         // FBX
-        'application/sla',           // STL
-        'application/stl',           // STL
-        'application/octet-stream',  // Generic binary data
-    ];
-
-    // Check if file mimetype is in allowed types
-    if (allowedMimeTypes.includes(file.mimetype)) {
-        cb(null, true); // Accept the file
-    } else {
-        cb(new Error('Invalid file type'), false); // Reject the file
-    }
-};
-
-// Configure Multer for uploads
-const upload = multer({ 
-    storage: storage,
-    fileFilter: fileFilter,
 });
 
 // Use the upload middleware for single file uploads
 const upload3DModel = upload.single('model');
 
-// Save 3D model metadata to database
+// Save 3D model metadata to the database
 const save3DModelToDB = async (req) => {
-    if (!req.file) {
-        throw new Error('No file uploaded.');
-    }
-
     try {
+        if (!req.file) {
+            throw new Error('No file uploaded.');
+        }
+
+        // Normalize to Windows-style paths
+        const normalizedPath = req.file.path.replace(/\//g, '\\');
+
         const threeDModel = new ThreeDModel({
             filename: req.file.filename,
-            filepath: req.file.path,
+            filepath: normalizedPath,
         });
 
         await threeDModel.save();
