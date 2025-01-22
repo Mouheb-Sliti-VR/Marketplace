@@ -78,15 +78,22 @@ const getAll3DModelURLs = async () => {
 // Function to download a 3D model by filename
 const download3DModelByName = (req, res) => {
     const { modelName } = req.params;
+
+    // Construct the full path to the file based on the location it's stored on the server
     const filePath = path.join(__dirname, '../uploads/3dmodels', modelName);
 
+    console.log('Trying to download model from path:', filePath);  // Debugging log
+
     if (fs.existsSync(filePath)) {
+        // Serve the file for download
         res.download(filePath, (err) => {
             if (err) {
+                console.error('Download error:', err);
                 return res.status(500).send('Error downloading the file: ' + err.message);
             }
         });
     } else {
+        console.error(`Model '${modelName}' not found at path:`, filePath);  // Debugging log
         return res.status(404).send(`Model '${modelName}' not found.`);
     }
 };
