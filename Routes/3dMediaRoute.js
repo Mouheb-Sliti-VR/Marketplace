@@ -8,9 +8,20 @@ const {
     download3DModelByName
 } = require('../Controllers/3DModelHandler');
 
-router.post('/upload3dmodel', upload3DModel, async (req, res) => {
-    console.log('Uploaded File:', req.file);  // Log the uploaded file
+router.post('/upload3dmodel', upload.fields([
+    { name: 'model', maxCount: 1 },
+    { name: 'image', maxCount: 1 }
+]), async (req, res) => {
     try {
+        if (!req.files || !req.files.model || !req.files.image) {
+            return res.status(400).json({ error: '3D model and image are required.' });
+        }
+
+        const { name, description } = req.body;
+        if (!name || !description) {
+            return res.status(400).json({ error: 'Name and description are required.' });
+        }
+
         const result = await save3DModelToDB(req);
         res.status(200).json({ message: '3D model uploaded successfully', model: result });
     } catch (error) {
@@ -19,11 +30,12 @@ router.post('/upload3dmodel', upload3DModel, async (req, res) => {
     }
 });
 
+
 // Fetch all 3D model URLs
 router.get('/get3dmodels', async (req, res) => {
     try {
-        const urls = await getAll3DModelURLs();
-        res.status(200).json(urls);
+        const models = await getAll3DModelURLs();
+        res.status(200).json(models);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }

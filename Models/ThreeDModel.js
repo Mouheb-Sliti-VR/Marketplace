@@ -8,6 +8,11 @@ const threeDModelSchema = new mongoose.Schema({
         default: '3dmodel', // Default type for this model
         required: true,
     },
+    name: {
+        type: String,
+        required: true,
+        trim: true, // Ensures no extra spaces
+    },
     filename: {
         type: String,
         required: true,
@@ -16,6 +21,15 @@ const threeDModelSchema = new mongoose.Schema({
     filepath: {
         type: String,
         required: true,
+    },
+    image: {
+        type: String, // Store the image URL or base64 string
+        required: false,
+    },
+    description: {
+        type: String,
+        required: false,
+        trim: true, // Removes extra whitespace
     },
     createdAt: {
         type: Date,

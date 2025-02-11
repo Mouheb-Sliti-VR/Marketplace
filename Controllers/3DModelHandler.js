@@ -1,114 +1,103 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs').promises; // Use async fs API
+const fs = require('fs').promises; // Async file system API
 const ThreeDModel = require("../Models/ThreeDModel");
-const { v4: uuidv4 } = require('uuid'); // Use UUID for unique identifiers
+const { v4: uuidv4 } = require('uuid');
 
-// Multer storage configuration
-const upload = multer({
-    storage: multer.diskStorage({
-        destination: async function (req, file, cb) {
-            try {
-                const uploadPath = path.join(__dirname, '../uploads/3dmodels');
-                // Check and create directory if it doesn't exist
-                await fs.access(uploadPath).catch(async () => {
-                    await fs.mkdir(uploadPath, { recursive: true });
-                });
-                cb(null, uploadPath);
-            } catch (error) {
-                console.error('Error setting destination path:', error);
-                cb(error);
-            }
-        },
-        filename: function (req, file, cb) {
-            const uniqueSuffix = `${Date.now()}-${uuidv4()}-${file.originalname}`;
-            cb(null, uniqueSuffix);
-        }
-    }),
-    fileFilter: (req, file, cb) => {
-        const allowedMimeTypes = [
-            'model/obj', 'model/gltf+json', 'model/gltf-binary',
-            'application/x-fbx', 'application/sla', 'application/stl',
-            'application/octet-stream'
-        ];
-        const isValid = allowedMimeTypes.includes(file.mimetype) || file.mimetype.startsWith('model/');
-        cb(null, isValid);
-    }
-});
+// Define upload directory
+const uploadPath = path.join(__dirname, '../uploads');
 
-// Middleware for single file uploads
-const upload3DModel = upload.single('model');
-
-// Save 3D model metadata to the database
-const save3DModelToDB = async (req) => {
+// Ensure directories exist
+const ensureDirectoryExists = async (dirPath) => {
     try {
-        if (!req.file) {
-            throw new Error('No file uploaded.');
-        }
-
-        // Normalize to Unix-style paths for consistency
-        const normalizedPath = path.normalize(req.file.path);
-
-        const threeDModel = new ThreeDModel({
-            filename: req.file.filename,
-            filepath: normalizedPath,
-        });
-
-        await threeDModel.save();
-        return threeDModel;
-    } catch (error) {
-        console.error('Error saving 3D model to DB:', error.message);
-        throw new Error(`Failed to save 3D model: ${error.message}`);
+        await fs.access(dirPath);
+    } catch {
+        await fs.mkdir(dirPath, { recursive: true });
     }
 };
 
-// Fetch all 3D model URLs
-const getAll3DModelURLs = async () => {
+// Multer storage configuration
+const storage = multer.diskStorage({
+    destination: async (req, file, cb) => {
+        const subFolder = file.mimetype.startsWith('image/') ? 'images' : '3dmodels';
+        const fullPath = path.join(uploadPath, subFolder);
+        await ensureDirectoryExists(fullPath);
+        cb(null, fullPath);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${uuidv4()}-${file.originalname}`);
+    }
+});
+
+// File filters
+const fileFilter = (req, file, cb) => {
+    const allowedMimeTypes = {
+        '3dmodels': ['model/obj', 'model/gltf+json', 'model/gltf-binary', 'application/x-fbx', 'application/sla', 'application/stl', 'application/octet-stream'],
+        'images': ['image/jpeg', 'image/png', 'image/webp']
+    };
+    
+    const fileType = file.mimetype.startsWith('image/') ? 'images' : '3dmodels';
+    cb(null, allowedMimeTypes[fileType].includes(file.mimetype));
+};
+
+// Multer upload middleware
+const upload = multer({ storage, fileFilter });
+
+const uploadFiles = upload.fields([
+    { name: 'model', maxCount: 1 },
+    { name: 'image', maxCount: 1 }
+]);
+
+// Save 3D model metadata
+const save3DModelToDB = async (req) => {
+    if (!req.files?.model) throw new Error('3D model file is required.');
+
+    const modelFile = req.files.model[0];
+    const imageFile = req.files.image?.[0] || null;
+
+    const threeDModel = new ThreeDModel({
+        name: req.body.name,
+        description: req.body.description,
+        filepath: path.relative(uploadPath, modelFile.path), // Store relative path
+        image: imageFile ? path.relative(uploadPath, imageFile.path) : null
+    });
+
+    await threeDModel.save();
+    return threeDModel;
+};
+
+// Fetch all 3D models with metadata
+const getAll3DModelData = async () => {
     try {
         const models = await ThreeDModel.find();
-        const baseUrl = 'https://marketplace-1-5g2u.onrender.com/3d/download/';
-        
+        const baseUrl = 'https://marketplace-1-5g2u.onrender.com/uploads';
+
         return models.map(model => ({
-            filename: model.filename,
-            url: `${baseUrl}${model.filename}`
+            name: model.name,
+            description: model.description,
+            modelUrl: `${baseUrl}/3dmodels/${model.filename}`,
+            imageUrl: model.image ? `${baseUrl}/${model.image}` : null
         }));
     } catch (error) {
-        console.error('Error fetching model URLs:', error.message);
-        throw new Error(`Failed to fetch model URLs: ${error.message}`);
+        throw new Error(`Failed to fetch models: ${error.message}`);
     }
 };
 
 // Download a 3D model by filename
 const download3DModelByName = async (req, res) => {
-    const { modelName } = req.params;
-
     try {
-        const filePath = path.join(__dirname, '../uploads/3dmodels', modelName);
-        console.log('Attempting to download model from path:', filePath);
-
-        // Check if the file exists
-        await fs.access(filePath);
-
-        // Serve the file for download
-        return res.download(filePath, (err) => {
-            if (err) {
-                console.error('Error during file download:', err.message);
-                return res.status(500).send('Error downloading the file: ' + err.message);
-            }
-        });
+        const filePath = path.join(uploadPath, '3dmodels', req.params.modelName);
+        await fs.access(filePath); // Check file existence
+        res.download(filePath);
     } catch (err) {
-        console.error(`Error finding model '${modelName}':`, err.message);
-        if (err.code === 'ENOENT') {
-            return res.status(404).send(`Model '${modelName}' not found.`);
-        }
-        return res.status(500).send('Error processing download request: ' + err.message);
+        res.status(err.code === 'ENOENT' ? 404 : 500).send(`Error: ${err.message}`);
     }
 };
 
 // Export the functions
 module.exports = {
-    upload3DModel,
+    uploadFiles,
     save3DModelToDB,
-    getAll3DModelURLs,
+    getAll3DModelData,
     download3DModelByName,
 };
