@@ -6,6 +6,9 @@ const { v4: uuidv4 } = require('uuid');
 
 // Define upload directory
 const uploadPath = path.join(__dirname, '../uploads');
+const LocalbaseUrl ='http://localhost:3000'; 
+const RenderURL ='https://marketplace-1-5g2u.onrender.com'; 
+
 
 // Ensure directories exist
 const ensureDirectoryExists = async (dirPath) => {
@@ -49,35 +52,39 @@ const uploadFiles = upload.fields([
 ]);
 
 // Save 3D model metadata
-const save3DModelToDB = async (req) => {
-    if (!req.files?.model) throw new Error('3D model file is required.');
+const save3DModelToDB = async (req, imageUrl) => {
+    const { name, description } = req.body;
+    const modelData = {
+        name: name,
+        description: description,
+        filename: req.files.model[0].filename, // Save the model file name
+        filepath: req.files.model[0].path, // Save the model file path
+        imageUrl: imageUrl, // Corrected: Save the image URL
+    };
 
-    const modelFile = req.files.model[0];
-    const imageFile = req.files.image?.[0] || null;
-
-    const threeDModel = new ThreeDModel({
-        name: req.body.name,
-        description: req.body.description,
-        filepath: path.relative(uploadPath, modelFile.path), // Store relative path
-        image: imageFile ? path.relative(uploadPath, imageFile.path) : null
-    });
-
-    await threeDModel.save();
-    return threeDModel;
+    try {
+        const model = new ThreeDModel(modelData);
+        await model.save();
+        return model;
+    } catch (error) {
+        throw new Error('Error saving the 3D model: ' + error.message);
+    }
 };
 
-// Fetch all 3D models with metadata
+// Fetch all 3D models with metadata and structured payload
 const getAll3DModelData = async () => {
     try {
-        const models = await ThreeDModel.find();
-        const baseUrl = 'https://marketplace-1-5g2u.onrender.com/uploads';
+        const models = await ThreeDModel.find(); // Retrieve models from the database
 
-        return models.map(model => ({
+        const Ai3DModels = models.map(model => ({
+            // id: model._id, // Include a unique ID for each model
             name: model.name,
             description: model.description,
-            modelUrl: `${baseUrl}/3dmodels/${model.filename}`,
-            imageUrl: model.image ? `${baseUrl}/${model.image}` : null
+            modelUrl: `${RenderURL}/uploads/3dmodels/${model.filename}`,
+            imageUrl: `${RenderURL}${model.imageUrl}`,
         }));
+
+        return {Ai3DModels};
     } catch (error) {
         throw new Error(`Failed to fetch models: ${error.message}`);
     }
@@ -94,7 +101,6 @@ const download3DModelByName = async (req, res) => {
     }
 };
 
-// Export the functions
 module.exports = {
     uploadFiles,
     save3DModelToDB,

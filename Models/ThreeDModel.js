@@ -1,7 +1,6 @@
 // Models/threeDModel.js
 const mongoose = require('mongoose');
 
-// Define the schema for 3D models
 const threeDModelSchema = new mongoose.Schema({
     type: {
         type: String,
@@ -22,9 +21,9 @@ const threeDModelSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    image: {
-        type: String, // Store the image URL or base64 string
-        required: false,
+    imageUrl: {
+        type: String, // Store the image URL
+        required: true, // Make image URL required
     },
     description: {
         type: String,
@@ -37,7 +36,5 @@ const threeDModelSchema = new mongoose.Schema({
     },
 });
 
-// Create a model from the schema
 const ThreeDModel = mongoose.model('ThreeDModel', threeDModelSchema);
-
-module.exports = ThreeDModel; // Export the model for use in other files
+module.exports = ThreeDModel;

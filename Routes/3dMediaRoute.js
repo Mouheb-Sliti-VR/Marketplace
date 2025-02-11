@@ -1,20 +1,21 @@
 const express = require('express');
 const { body, param, validationResult } = require('express-validator');
 const router = express.Router();
+
 const {
-    upload3DModel,
+    uploadFiles,  // ✅ Correction du nom
     save3DModelToDB,
-    getAll3DModelURLs,
+    getAll3DModelData,  // ✅ Correction du nom
     download3DModelByName
 } = require('../Controllers/3DModelHandler');
 
-router.post('/upload3dmodel', upload.fields([
-    { name: 'model', maxCount: 1 },
-    { name: 'image', maxCount: 1 }
-]), async (req, res) => {
+// Upload 3D model and image
+router.post('/upload3dmodel', uploadFiles, async (req, res) => {
+    console.log(req.files); // Log the files to see if the image is being uploaded
     try {
+        // Validation checks for required fields
         if (!req.files || !req.files.model || !req.files.image) {
-            return res.status(400).json({ error: '3D model and image are required.' });
+            return res.status(400).json({ error: 'Both 3D model and image are required.' });
         }
 
         const { name, description } = req.body;
@@ -22,22 +23,28 @@ router.post('/upload3dmodel', upload.fields([
             return res.status(400).json({ error: 'Name and description are required.' });
         }
 
-        const result = await save3DModelToDB(req);
+        const imageUrl = req.files.image[0] ? `/uploads/images/${req.files.image[0].filename}` : null;
+        if (!imageUrl) {
+            return res.status(400).json({ error: 'An image URL must be provided.' });
+        }
+
+        // Save the model data to DB
+        const result = await save3DModelToDB(req, imageUrl);
         res.status(200).json({ message: '3D model uploaded successfully', model: result });
+
     } catch (error) {
         console.error('Upload Error:', error);
-        res.status(400).json({ error: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
-
-// Fetch all 3D model URLs
+// Fetch all 3D models URLs
 router.get('/get3dmodels', async (req, res) => {
     try {
-        const models = await getAll3DModelURLs();
+        const models = await getAll3DModelData();
         res.status(200).json(models);
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
