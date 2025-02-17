@@ -25,10 +25,10 @@ const mediaSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },  // MIME type, e.g., "image/png"
-  data: Buffer,  // Optional: Binary data (for smaller files)
+  data: Buffer,  
   url: { 
     type: String 
-  },  // Optional: URL for external storage (if applicable)
+  },
   uploadedBy: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User' 
@@ -36,7 +36,7 @@ const mediaSchema = new mongoose.Schema({
   createdAt: { 
     type: Date, 
     default: Date.now 
-  },  // Auto-generated timestamp
+  },
 }, { timestamps: true });
 
 const Media = mongoose.model('Media', mediaSchema);

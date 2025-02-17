@@ -47,7 +47,6 @@ router.post('/latestMediaURLs', async (req, res) => {
     }
 });
 
-
 // Route to serve media files by their secureId
 router.get('/:id', async (req, res) => {
     try {

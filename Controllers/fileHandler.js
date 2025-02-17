@@ -46,7 +46,7 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     const options = { new: true };
 
     const user = await User.findOneAndUpdate(
-        { email: req.user.email }, // Assuming email in JWT token
+        { email: req.user.email }, 
         update,
         options
     );

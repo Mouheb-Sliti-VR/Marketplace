@@ -131,7 +131,13 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
       const videoUrl = user.video ? `http://localhost:3000/media/${await getMediaFilename(user.video)}` : null;
       const logoUrl = user.logo ? `http://localhost:3000/media/${await getMediaFilename(user.logo)}` : null;
 
-      return { image1Url, image2Url, videoUrl, logoUrl };
+      return {
+        companyName: user.companyName, // Ensure company name is included
+        image1Url,
+        image2Url,
+        videoUrl,
+        logoUrl
+      };
     }));
 
     // Construct the response object
@@ -147,8 +153,9 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
   }
 });
 
+
 // Route to show user's balance
-router.post("/show-balance", async (req, res) => {
+router.get("/show-balance", async (req, res) => {
   try {
     // Find user by email
     const user = await User.findOne({ email: req.body.email });
