@@ -47,11 +47,20 @@ const save3DModel = async (req) => {
         throw new Error('Name, description, model, and image are required.');
     }
 
+    // Validate File Types
+    const isModelValid = ['model/gltf-binary', 'model/gltf+json', 'model/obj', 'application/stl'].includes(modelFile.mimetype);
+    const isImageValid = ['image/jpeg', 'image/png', 'image/webp'].includes(imageFile.mimetype);
+
+    if (!isModelValid || !isImageValid) {
+        throw new Error('Invalid file format: Ensure the model is a .glb/.obj and image is .jpg/.png');
+    }
+
+    // Save to DB
     const newModel = new ThreeDModel({
         name,
         description,
-        filename: modelFile.filename, 
-        imageUrl: `/uploads/images/${imageFile.filename}`,
+        filename: modelFile.filename, // 3D Model file
+        imageUrl: `/uploads/images/${imageFile.filename}`, // Image file
     });
 
     return await newModel.save();
