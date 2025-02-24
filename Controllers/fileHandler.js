@@ -6,22 +6,51 @@ const crypto = require('crypto');
 // Generate unique secure IDs for files
 const generateSecureFileId = () => crypto.randomBytes(16).toString('hex');
 
-// Setup multer for file uploads
+// Configure Multer with memory storage
 const storage = multer.memoryStorage();
+
+// Define the upload middleware with file size limit and file type filtering
 const upload = multer({
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB file size limit
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png', 'video/mp4'];
-        if (!allowedTypes.includes(file.mimetype)) {
-            return cb(new Error('Unsupported file type'));
-        }
-        cb(null, true);
+  storage: storage,
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB file size limit
+  fileFilter: (req, file, cb) => {
+    console.log('File MIME type:', file.mimetype);  // Log the MIME type of the file
+    const allowedTypes = ['image/jpeg', 'image/png', 'video/mp4'];
+    
+    // Check if the file type is allowed
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Unsupported file type'));
     }
+    
+    // If the file type is allowed, accept the file
+    cb(null, true);
+  }
 });
 
 // Middleware for handling single file upload
-const uploadFile = upload.single('media');
+const uploadFile = (req, res, next) => {
+  upload.single('media')(req, res, (err) => {
+    if (err) {
+      // Handle Multer errors (size limit or unsupported file type)
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File is too large. Max size is 15MB.' });
+        }
+      } 
+      
+      // Handle other types of errors like unsupported file type
+      if (err.message === 'Unsupported file type') {
+        return res.status(400).json({ error: 'Unsupported file type. Only images and videos are allowed.' });
+      }
+
+      // Catch all other errors
+      return res.status(500).json({ error: 'An error occurred during file upload.', details: err.message });
+    }
+
+    // If no error, proceed to the next middleware
+    next();
+  });
+};
 
 // Save file to DB and update user
 const saveFileToDBAndUpdateUser = async (req, fieldName) => {
