@@ -71,7 +71,7 @@ async function getLatestMediaURLsForUser(email) {
             throw new Error('User not found');
         }
 
-        const baseUrl = process.env.MEDIA_BASE_URL || 'http://localhost:3000//media';
+        const baseUrl = process.env.MEDIA_BASE_URL || 'http://localhost:3000/media';
         return {
             Logo: user.logo ? `${baseUrl}/${user.logo.secureId}` : null,
             Image1: user.image1 ? `${baseUrl}/${user.image1.secureId}` : null,

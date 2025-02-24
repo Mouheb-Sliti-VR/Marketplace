@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { uploadFile, saveFileToDBAndUpdateUser, getLatestMediaURLsForUser } = require('../Controllers/fileHandler');
-const authenticateToken = require('../Middleware/authMiddleware'); // Authentication middleware
+const authenticateToken = require('../Middleware/authMiddleware'); // 
 const Media = require('../Models/mediaModel');
 
-// Handle upload of media and update user
+
 router.post('/uploadMedia', authenticateToken,uploadFile, async (req, res) => {
     try {
         const { fieldName } = req.body;
@@ -39,7 +39,7 @@ router.post('/latestMediaURLs', async (req, res) => {
     }
 
     try {
-        const mediaURLs = await getLatestMediaURLsForUser(email); // Pass email instead of companyName
+        const mediaURLs = await getLatestMediaURLsForUser(email); 
         res.json(mediaURLs);
     } catch (error) {
         console.error(error);
@@ -47,7 +47,6 @@ router.post('/latestMediaURLs', async (req, res) => {
     }
 });
 
-// Route to serve media files by their secureId
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;

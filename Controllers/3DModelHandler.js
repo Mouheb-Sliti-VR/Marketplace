@@ -57,9 +57,9 @@ const save3DModelToDB = async (req, imageUrl) => {
     const modelData = {
         name: name,
         description: description,
-        filename: req.files.model[0].filename, // Save the model file name
-        filepath: req.files.model[0].path, // Save the model file path
-        imageUrl: imageUrl, // Corrected: Save the image URL
+        filename: req.files.model[0].filename,
+        filepath: req.files.model[0].path, 
+        imageUrl: imageUrl, 
     };
 
     try {
@@ -74,10 +74,9 @@ const save3DModelToDB = async (req, imageUrl) => {
 // Fetch all 3D models with metadata and structured payload
 const getAll3DModelData = async () => {
     try {
-        const models = await ThreeDModel.find(); // Retrieve models from the database
+        const models = await ThreeDModel.find(); 
 
         const Ai3DModels = models.map(model => ({
-            // id: model._id, // Include a unique ID for each model
             name: model.name,
             description: model.description,
             modelUrl: `${RenderURL}/uploads/3dmodels/${model.filename}`,
@@ -94,7 +93,7 @@ const getAll3DModelData = async () => {
 const download3DModelByName = async (req, res) => {
     try {
         const filePath = path.join(uploadPath, '3dmodels', req.params.modelName);
-        await fs.access(filePath); // Check file existence
+        await fs.access(filePath); 
         res.download(filePath);
     } catch (err) {
         res.status(err.code === 'ENOENT' ? 404 : 500).send(`Error: ${err.message}`);

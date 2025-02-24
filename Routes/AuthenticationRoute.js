@@ -5,13 +5,8 @@ const jwt = require("jsonwebtoken");
 const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
 const validator = require('validator');
+const { getLatestMediaURLsForUser } = require('../Controllers/fileHandler.js'); 
 
-
-// Function to get media filename from the media ID
-async function getMediaFilename(mediaId) {
-  const media = await Media.findById(mediaId);
-  return media ? media.filename : null;
-};
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -108,10 +103,10 @@ router.post("/login", async (req, res) => {
       res.status(500).send("Login failed");
   }
 });
-// Route to get users with published files
+
 router.get("/usersWithPublishedFiles", async (req, res) => {
   try {
-    // Find users who have at least one of the media fields populated
+    // Find users who have at least one media field populated
     const usersWithFiles = await User.find({
       $or: [
         { image1: { $exists: true } },
@@ -124,35 +119,27 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
     // Total number of partners with uploaded files
     const totalPartners = usersWithFiles.length;
 
-    // Simplify the user data and construct media URLs
-    const usersWithUrls = await Promise.all(usersWithFiles.map(async user => {
-      const image1Url = user.image1 ? `http://localhost:3000/media/${await getMediaFilename(user.image1)}` : null;
-      const image2Url = user.image2 ? `http://localhost:3000/media/${await getMediaFilename(user.image2)}` : null;
-      const videoUrl = user.video ? `http://localhost:3000/media/${await getMediaFilename(user.video)}` : null;
-      const logoUrl = user.logo ? `http://localhost:3000/media/${await getMediaFilename(user.logo)}` : null;
+    // Fetch media URLs using secureId for each user and include balance
+    const usersWithUrls = await Promise.all(usersWithFiles.map(async (user) => {
+      const mediaUrls = await getLatestMediaURLsForUser(user.email); // Uses secureId-based URLs
 
       return {
-        companyName: user.companyName, // Ensure company name is included
-        image1Url,
-        image2Url,
-        videoUrl,
-        logoUrl
+        companyName: user.companyName,
+        balance: user.balance, // Include balance
+        Logo: mediaUrls.Logo,   
+        Image1: mediaUrls.Image1,
+        Image2: mediaUrls.Image2,
+        Video: mediaUrls.Video
       };
     }));
 
     // Construct the response object
-    const response = {
-      users: usersWithUrls,
-      totalPartners
-    };
-
-    res.json(response);
+    res.json({ users: usersWithUrls, totalPartners });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 // Route to show user's balance
 router.get("/show-balance", async (req, res) => {
@@ -210,6 +197,5 @@ router.post("/decrease-balance", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 module.exports = router;
