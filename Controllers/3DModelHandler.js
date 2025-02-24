@@ -1,108 +1,84 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs').promises; // Async file system API
+const fs = require('fs').promises;
 const ThreeDModel = require("../Models/ThreeDModel");
 const { v4: uuidv4 } = require('uuid');
 
-// Define upload directory
-const uploadPath = path.join(__dirname, '../uploads');
-const LocalbaseUrl ='http://localhost:3000'; 
-const RenderURL ='https://marketplace-1-5g2u.onrender.com'; 
+const UPLOAD_DIR = path.join(__dirname, '../uploads');
+const BASE_URL = 'https://marketplace-1-5g2u.onrender.com';
 
+// Ensure Upload Directory Exists
+const ensureDir = async (dir) => fs.access(dir).catch(() => fs.mkdir(dir, { recursive: true }));
 
-// Ensure directories exist
-const ensureDirectoryExists = async (dirPath) => {
-    try {
-        await fs.access(dirPath);
-    } catch {
-        await fs.mkdir(dirPath, { recursive: true });
-    }
-};
-
-// Multer storage configuration
+// Multer Storage Configuration
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {
-        const subFolder = file.mimetype.startsWith('image/') ? 'images' : '3dmodels';
-        const fullPath = path.join(uploadPath, subFolder);
-        await ensureDirectoryExists(fullPath);
+        const subDir = file.mimetype.startsWith('image/') ? 'images' : '3dmodels';
+        const fullPath = path.join(UPLOAD_DIR, subDir);
+        await ensureDir(fullPath);
         cb(null, fullPath);
     },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${uuidv4()}-${file.originalname}`);
-    }
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${uuidv4()}-${file.originalname}`)
 });
 
-// File filters
+// File Filter
 const fileFilter = (req, file, cb) => {
-    const allowedMimeTypes = {
+    const allowed = {
         '3dmodels': ['model/obj', 'model/gltf+json', 'model/gltf-binary', 'application/x-fbx', 'application/sla', 'application/stl', 'application/octet-stream'],
         'images': ['image/jpeg', 'image/png', 'image/webp']
     };
-    
-    const fileType = file.mimetype.startsWith('image/') ? 'images' : '3dmodels';
-    cb(null, allowedMimeTypes[fileType].includes(file.mimetype));
+    const type = file.mimetype.startsWith('image/') ? 'images' : '3dmodels';
+    cb(null, allowed[type]?.includes(file.mimetype));
 };
 
-// Multer upload middleware
-const upload = multer({ storage, fileFilter });
-
-const uploadFiles = upload.fields([
+// Multer Upload Middleware
+const upload = multer({ storage, fileFilter }).fields([
     { name: 'model', maxCount: 1 },
     { name: 'image', maxCount: 1 }
 ]);
 
-// Save 3D model metadata
-const save3DModelToDB = async (req, imageUrl) => {
+// Save 3D Model Metadata
+const save3DModel = async (req) => {
     const { name, description } = req.body;
-    const modelData = {
-        name: name,
-        description: description,
-        filename: req.files.model[0].filename,
-        filepath: req.files.model[0].path, 
-        imageUrl: imageUrl, 
-    };
+    const modelFile = req.files?.model?.[0];
+    const imageFile = req.files?.image?.[0];
 
-    try {
-        const model = new ThreeDModel(modelData);
-        await model.save();
-        return model;
-    } catch (error) {
-        throw new Error('Error saving the 3D model: ' + error.message);
+    if (!name || !description || !modelFile || !imageFile) {
+        throw new Error('Name, description, model, and image are required.');
     }
+
+    const newModel = new ThreeDModel({
+        name,
+        description,
+        filename: modelFile.filename, 
+        imageUrl: `/uploads/images/${imageFile.filename}`,
+    });
+
+    return await newModel.save();
 };
 
-// Fetch all 3D models with metadata and structured payload
-const getAll3DModelData = async () => {
-    try {
-        const models = await ThreeDModel.find(); 
-
-        const Ai3DModels = models.map(model => ({
-            name: model.name,
-            description: model.description,
-            modelUrl: `${RenderURL}/uploads/3dmodels/${model.filename}`,
-            imageUrl: `${RenderURL}${model.imageUrl}`,
-        }));
-
-        return {Ai3DModels};
-    } catch (error) {
-        throw new Error(`Failed to fetch models: ${error.message}`);
-    }
+// Get All 3D Models
+const getAll3DModels = async () => {
+    const models = await ThreeDModel.find();
+    return {
+        models: models.map(m => ({
+            name: m.name,
+            description: m.description,
+            modelUrl: `${BASE_URL}/uploads/3dmodels/${m.filename}`, 
+            imageUrl: `${BASE_URL}${m.imageUrl}`
+        }))
+    };    
 };
 
-// Download a 3D model by filename
-const download3DModelByName = async (req, res) => {
+// Download 3D Model
+const download3DModel = async (req, res) => {
     try {
-        const filePath = path.join(uploadPath, '3dmodels', req.params.modelName);
-        await fs.access(filePath); 
+        const filePath = path.join(UPLOAD_DIR, '3dmodels', req.params.modelName);
+        await fs.access(filePath);
         res.download(filePath);
     } catch (err) {
-        res.status(err.code === 'ENOENT' ? 404 : 500).send(`Error: ${err.message}`);
+        res.status(err.code === 'ENOENT' ? 404 : 500).json({ error: err.message });
     }
 };
 
-module.exports = {
-    uploadFiles,
-    save3DModelToDB,
-    getAll3DModelData,
-    download3DModelByName,
-};
+module.exports = { upload, save3DModel, getAll3DModels, download3DModel };
