@@ -124,8 +124,9 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
       const mediaUrls = await getLatestMediaURLsForUser(user.email); // Uses secureId-based URLs
 
       return {
+        email: user.email,
         companyName: user.companyName,
-        balance: user.balance, // Include balance
+        balance: user.balance, 
         Logo: mediaUrls.Logo,   
         Image1: mediaUrls.Image1,
         Image2: mediaUrls.Image2,
@@ -142,16 +143,27 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
 });
 
 // Route to show user's balance
-router.get("/show-balance", async (req, res) => {
+router.post("/show-balance", async (req, res) => {
   try {
-    // Find user by email
-    const user = await User.findOne({ email: req.body.email });
-    if (!user) {
-      return res.status(404).send("User not found");
+    // Log only important information
+    const companyName = req.body.companyName;
+    console.log("Incoming request:", companyName);
+
+    if (!companyName) {
+      return res.status(400).json({ error: "Partner name is required" });
     }
+
+    const user = await User.findOne({ companyName });
+    if (!user) {
+      return res.status(404).json({ error: "Partner not found" });
+    }
+
+    // Log only email and balance
+    console.log("Partner found: Name:", user.companyName, "balance:", user.balance);
+
     res.json({ balance: user.balance });
   } catch (error) {
-    console.error(error);
+    console.error("Error in /show-balance:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -178,9 +190,9 @@ router.post("/add-balance", async (req, res) => {
 // Route to decrease balance from user's account
 router.post("/decrease-balance", async (req, res) => {
   try {
-    const { email, amount } = req.body;
+    const { companyName, amount } = req.body;
     // Find user by email
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ companyName });
     if (!user) {
       return res.status(404).send("User not found");
     }

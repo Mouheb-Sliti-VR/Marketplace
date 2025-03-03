@@ -32,4 +32,4 @@ app.use("/3d", ThreeDRoute);
 app.get("/health-check", (req, res) => res.status(200).json({ status: "up", timestamp: new Date() }));
 
 // Start Server
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Marketplace running on http://localhost:${PORT}`));
