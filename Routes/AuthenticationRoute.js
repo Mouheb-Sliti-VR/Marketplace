@@ -5,8 +5,10 @@ const jwt = require("jsonwebtoken");
 const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
 const validator = require('validator');
-const { getLatestMediaURLsForUser } = require('../Controllers/fileHandler.js'); 
-
+const axios = require('axios');
+const FormData = require('form-data');
+const authenticateToken = require ('../Middleware/authMiddleware.js')
+const { getLatestMediaURLsForUser,uploadFile,saveFileToDBAndUpdateUser } = require('../Controllers/fileHandler.js'); 
 
 // Registration route
 router.post("/register", async (req, res) => {
@@ -44,8 +46,17 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     console.log(`Creating user with email: ${email}`);
-    const user = new User({ email, companyName, password: hashedPassword, balance:500});
-    await user.save();
+    const user = new User({ 
+      email, 
+      companyName, 
+      password: hashedPassword, 
+      balance: 500, 
+      zipCode:"", 
+      country:"", 
+      address:"", 
+      city:"", 
+    });
+        await user.save();
 
     console.info(`User registered successfully: ${email}`);
     res.status(201).json({ message: "User registered successfully" });
@@ -89,6 +100,11 @@ router.post("/login", async (req, res) => {
       console.info(`Company Name: ${user.companyName}`);
       console.info(`Token: ${token}`);
       console.info(`Balance: ${user.balance}`);
+      console.info(`Zip Code: ${user.zipCode}`);
+      console.info(`Country: ${user.country}`);
+      console.info(`Address: ${user.address}`);
+      console.info(`City: ${user.city}`);
+      
 
       // Send response with all relevant information
       res.send({
@@ -96,13 +112,63 @@ router.post("/login", async (req, res) => {
           token,
           balance: user.balance,
           email: user.email, // Include email in the response if needed
-          companyName: user.companyName // Include company name in the response if needed
+          companyName: user.companyName, // Include company name in the response if needed
+          zipCode: user.zipCode,
+          country: user.country,
+          address: user.address,
+          city: user.city
+      
       });
   } catch (error) {
       console.error("Login failed with error:", error);
       res.status(500).send("Login failed");
   }
 });
+ 
+
+router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) => {
+  try {
+    const { address, zipCode, city, country } = req.body;
+
+    // Validate required fields
+    if (!address || !zipCode || !city || !country) {
+      return res.status(400).json({ error: 'All fields (address, zipCode, city, country) are required.' });
+    }
+
+    let user;
+
+    // Check for uploaded file
+    if (req.file) {
+      user = await saveFileToDBAndUpdateUser(req, 'logo');
+    } else {
+      user = await User.findOne({ email: req.user.email }).populate('logo');
+      if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+    }
+
+    // Update user profile fields
+    Object.assign(user, { address, zipCode, city, country });
+
+    // Save the updated user
+    await user.save();
+
+    // Respond with updated user information
+    res.json({
+      message: "Profile updated successfully",
+      user: {
+        logo: user.logo ? `https://marketplace-1-5g2u.onrender.com/media/${user.logo.secureId}` : null,
+        address: user.address,
+        zipCode: user.zipCode,
+        city: user.city,
+        country: user.country,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update profile", details: error.message });
+  }
+});
+
 
 router.get("/usersWithPublishedFiles", async (req, res) => {
   try {
@@ -122,6 +188,8 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
     // Fetch media URLs using secureId for each user and include balance
     const usersWithUrls = await Promise.all(usersWithFiles.map(async (user) => {
       const mediaUrls = await getLatestMediaURLsForUser(user.email); // Uses secureId-based URLs
+      console.log("Media URLs for user:", mediaUrls); 
+      
 
       return {
         email: user.email,

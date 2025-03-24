@@ -6,10 +6,16 @@ const userSchema = new mongoose.Schema(
     companyName: { type: String, required: true },
     password: { type: String, required: true },
     balance: { type: Number, default: 500 }, // Default Balance of the partner = 500
-    logo: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, // Reference to the latest logo uploaded
-    image1: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, // Reference to the latest uploaded image 1
-    image2: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, // Reference to the latest uploaded image 2
-    video: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, // Reference to the latest uploaded video
+
+    logo: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' },
+    image1: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, 
+    image2: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, 
+    video: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, 
+
+    address: { type: String, default: ""  },
+    zipCode: { type: String, default: "" },
+    city: { type: String, default: "" },
+    country: { type: String, default: "" },
   },
   {
     timestamps: true,

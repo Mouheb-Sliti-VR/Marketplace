@@ -11,6 +11,7 @@ const ThreeDRoute = require("./Routes/3dMediaRoute");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.DB_URI;
+app.use(express.json()); 
 
 // Middleware
 app.use(cors({ origin: '*', credentials: true }));

@@ -27,90 +27,122 @@ const upload = multer({
   }
 });
 
-// Middleware for handling single file upload
+// Debugging-enhanced uploadFile middleware
 const uploadFile = (req, res, next) => {
+  console.log("[uploadFile] Called");
   upload.single('media')(req, res, (err) => {
     if (err) {
-      // Handle Multer errors (size limit or unsupported file type)
+      console.error("[uploadFile] Multer error:", err);
+      // Handle Multer-specific errors
       if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
+          console.error("[uploadFile] File size exceeds limit (15MB)");
           return res.status(400).json({ error: 'File is too large. Max size is 15MB.' });
         }
-      } 
+      }
       
-      // Handle other types of errors like unsupported file type
+      // Handle unsupported file type error
       if (err.message === 'Unsupported file type') {
+        console.error("[uploadFile] Unsupported file type");
         return res.status(400).json({ error: 'Unsupported file type. Only images and videos are allowed.' });
       }
-
+      
       // Catch all other errors
+      console.error("[uploadFile] Other error occurred:", err.message);
       return res.status(500).json({ error: 'An error occurred during file upload.', details: err.message });
     }
 
-    // If no error, proceed to the next middleware
     next();
   });
 };
 
-// Save file to DB and update user
+// Debugging-enhanced saveFileToDBAndUpdateUser function
 const saveFileToDBAndUpdateUser = async (req, fieldName) => {
-    if (!req.file) {
-        throw new Error('No file uploaded.');
-    }
+  console.log("Uploading : ", fieldName);
 
-    const media = new Media({
-        secureId: generateSecureFileId(),
-        mimeType: req.file.mimetype, // Store mimeType
-        size: req.file.size,         // Store size
-        type: req.file.mimetype.split('/')[0], // 'image' or 'video'
-        filename: req.file.originalname, // Store original filename
-        data: req.file.buffer // Store file data in buffer
-    });
+  if (!req.file) {
+      console.error("[saveFileToDBAndUpdateUser] No file found in request");
+      throw new Error('No file uploaded.');
+  }
 
-    // Save media to database
-    await media.save();
+  // Create new Media object
+  const media = new Media({
+      secureId: generateSecureFileId(),
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      type: req.file.mimetype.split('/')[0],
+      filename: req.file.originalname,
+      data: req.file.buffer,
+      uploadedBy: req.user._id // Assuming req.user contains the authenticated user's info
+  });
 
-    // Update the user document with the media ObjectId reference
-    const update = { [fieldName]: media._id };
-    const options = { new: true };
+  // Save media to the database
+  try {
+      await media.save();
+      console.log("Media saved successfully with ID:", media.secureId, media.filename);
+      
+      // Set the URL after saving
+      media.url = `https://marketplace-1-5g2u.onrender.com/media/${media.secureId}`;
+      await media.save(); // Save the updated media object with the URL
+  } catch (err) {
+      console.error("[saveFileToDBAndUpdateUser] Error saving media to DB:", err);
+      throw err;
+  }
 
-    const user = await User.findOneAndUpdate(
-        { email: req.user.email }, 
-        update,
-        options
-    );
+  // Prepare the update object for the user document
+  const update = { [fieldName]: media._id };
 
-    if (!user) {
-        throw new Error('User not found');
-    }
+  // Options to return the updated document
+  const options = { new: true };
 
-    return user; // Return updated user with media references
+  // Find the user and update with the new media reference
+  let user;
+  try {
+      user = await User.findOneAndUpdate(
+          { email: req.user.email },
+          update,
+          options
+      );
+  } catch (err) {
+      console.error("[saveFileToDBAndUpdateUser] Error updating user:", err);
+      throw err;
+  }
+
+  if (!user) {
+      console.error("[saveFileToDBAndUpdateUser] User not found with email:", req.user.email);
+      throw new Error('User not found');
+  }
+
+  return user;
 };
+
 
 // Get the latest media URLs for a given user by company name
 async function getLatestMediaURLsForUser(email) {
-    try {
-        const user = await User.findOne({ email })
-            .populate('logo')
-            .populate('image1')
-            .populate('image2')
-            .populate('video');
+  try {
+      const user = await User.findOne({ email })
+          .populate('logo')
+          .populate('image1')
+          .populate('image2')
+          .populate('video');
 
-        if (!user) {
-            throw new Error('User not found');
-        }
+      //console.log("[getLatestMediaURLsForUser] Retrieved user:", user); // Log the user object
 
-        const baseUrl = 'https://marketplace-1-5g2u.onrender.com/media';
-        return {
-            Logo: user.logo ? `${baseUrl}/${user.logo.secureId}` : null,
-            Image1: user.image1 ? `${baseUrl}/${user.image1.secureId}` : null,
-            Image2: user.image2 ? `${baseUrl}/${user.image2.secureId}` : null,
-            Video: user.video ? `${baseUrl}/${user.video.secureId}` : null
-        };
-    } catch (error) {
-        console.error(error);
-        throw error;
-    }
+      if (!user) {
+          throw new Error('User not found');
+      }
+
+      const baseUrl = 'https://marketplace-1-5g2u.onrender.com/media';
+      return {
+          Logo: user.logo ? `${baseUrl}/${user.logo.secureId}` : null,
+          Image1: user.image1 ? `${baseUrl}/${user.image1.secureId}` : null,
+          Image2: user.image2 ? `${baseUrl}/${user.image2.secureId}` : null,
+          Video: user.video ? `${baseUrl}/${user.video.secureId}` : null
+      };
+  } catch (error) {
+      console.error("[getLatestMediaURLsForUser] Error:", error);
+      throw error;
+  }
 }
 
 module.exports = { uploadFile, saveFileToDBAndUpdateUser, getLatestMediaURLsForUser };
