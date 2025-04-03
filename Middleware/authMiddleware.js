@@ -26,25 +26,14 @@ function authenticateToken(req, res, next) {
     }
 }
 
-/* Middleware to authenticate the user using JWT
-const authenticateJWT = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1]; // Extract token from Authorization header
-  if (!token) {
-    console.warn("Authentication failed: No token provided.");
-    return res.sendStatus(403); // Forbidden
-  }
+function generateToken(user) {
+  return jwt.sign(
+      { _id: user._id, email: user.email, companyName: user.companyName }, // Ensure `_id` is included
+      process.env.SECRET_KEY,
+      { expiresIn: '15d' } // Set token expiration
+  );
+}
 
-  jwt.verify(token, process.env.SECRET_KEY, (err, user) => {
-    if (err) {
-      console.warn("Authentication failed: Invalid token.");
-      return res.sendStatus(403); // Forbidden
-    }
-    req.user = user; // Attach user info to the request
-    console.info(`User authenticated: ${user.email}`);
-    next();
-  });
-};
-*/
+module.exports = { authenticateToken, generateToken };
 
 
-module.exports = authenticateToken;

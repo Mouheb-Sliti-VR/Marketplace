@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { uploadFile, saveFileToDBAndUpdateUser, getLatestMediaURLsForUser } = require('../Controllers/fileHandler');
-const authenticateToken = require('../Middleware/authMiddleware'); // 
+const {authenticateToken} = require('../Middleware/authMiddleware');
 const Media = require('../Models/mediaModel');
 
 

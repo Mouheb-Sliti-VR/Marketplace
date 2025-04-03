@@ -7,7 +7,7 @@ const Media = require("../Models/mediaModel");
 const validator = require('validator');
 const axios = require('axios');
 const FormData = require('form-data');
-const authenticateToken = require ('../Middleware/authMiddleware.js')
+const {authenticateToken} = require ('../Middleware/authMiddleware.js');
 const { getLatestMediaURLsForUser,uploadFile,saveFileToDBAndUpdateUser } = require('../Controllers/fileHandler.js'); 
 
 // Registration route
@@ -90,7 +90,7 @@ router.post("/login", async (req, res) => {
 
       console.log(`Password verified for user: ${email}. Generating token.`);
       const token = jwt.sign(
-          { email: user.email, companyName: user.companyName },
+          { _id: user._id, email: user.email, companyName: user.companyName },
           process.env.SECRET_KEY,
           { expiresIn: '2w' } // Optional: Token expiration time
       );
@@ -104,10 +104,9 @@ router.post("/login", async (req, res) => {
       console.info(`Country: ${user.country}`);
       console.info(`Address: ${user.address}`);
       console.info(`City: ${user.city}`);
-      
 
       // Send response with all relevant information
-      res.send({
+      return res.status(200).send({
           message: `${user.companyName} has successfully connected with this token`,
           token,
           balance: user.balance,
@@ -117,14 +116,13 @@ router.post("/login", async (req, res) => {
           country: user.country,
           address: user.address,
           city: user.city
-      
       });
+
   } catch (error) {
       console.error("Login failed with error:", error);
-      res.status(500).send("Login failed");
+      return res.status(500).send("Login failed");
   }
 });
- 
 
 router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) => {
   try {
@@ -166,6 +164,51 @@ router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) =>
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to update profile", details: error.message });
+  }
+});
+
+router.get('/getUserDetails', authenticateToken, async (req, res) => {
+  try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.email) {
+      console.log("Unauthorized access: No user found in token");
+      return res.status(401).json({ error: 'Unauthorized: No user found in token' });
+    }
+
+    // Retrieve the user details based on the authenticated email (or user ID)
+    const user = await User.findOne({ email: req.user.email })
+      .populate('logo')  // Populate the 'logo' media
+      .populate('image1') // Optionally populate other media (if needed)
+      .populate('image2') // Optionally populate other media (if needed)
+      .populate('video'); // Optionally populate video media (if needed)
+
+    if (!user) {
+      console.log("User not found for email: " + req.user.email);
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Log success
+    console.log("Successfully retrieved user details for email: " + req.user.email);
+
+    // Respond with user details
+    res.json({
+      user: {
+        logo: user.logo ? `https://marketplace-1-5g2u.onrender.com/media/${user.logo.secureId}` : null,
+        image1: user.image1 ? `https://marketplace-1-5g2u.onrender.com/media/${user.image1.secureId}` : null,
+        image2: user.image2 ? `https://marketplace-1-5g2u.onrender.com/media/${user.image2.secureId}` : null,
+        video: user.video ? `https://marketplace-1-5g2u.onrender.com/media/${user.video.secureId}` : null,
+        address: user.address,
+        zipCode: user.zipCode,
+        city: user.city,
+        country: user.country,
+        email: user.email,
+        companyName: user.companyName,
+        balance: user.balance,
+      }
+    });
+  } catch (error) {
+    console.error("Error occurred while fetching user details:", error.message);
+    res.status(500).json({ error: 'Failed to fetch user details', details: error.message });
   }
 });
 

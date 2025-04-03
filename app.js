@@ -7,6 +7,9 @@ const path = require("path");
 const registerRoute = require("./Routes/AuthenticationRoute");
 const latestMediaURLsRoute = require("./Routes/MediaRoute");
 const ThreeDRoute = require("./Routes/3dMediaRoute");
+const offersRoute = require("./Routes/offersRoute");
+const subscriptionRoute =require ("./Routes/subscriptionRoute");
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +31,8 @@ mongoose.connect(MONGODB_URI)
 app.use("/auth", registerRoute);
 app.use("/media", latestMediaURLsRoute);
 app.use("/3d", ThreeDRoute);
+app.use("/offers", offersRoute);
+app.use("/offers", subscriptionRoute);
 
 // Health Check Route
 app.get("/health-check", (req, res) => res.status(200).json({ status: "up", timestamp: new Date() }));
