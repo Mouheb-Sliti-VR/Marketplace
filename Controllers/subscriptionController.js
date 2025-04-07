@@ -41,6 +41,8 @@ async function createSubscription(req, res) {
 
     // Create a new subscription with the authenticated user
     const subscription = new Subscription({ user: userId, offer: offerId });
+    console.log("Ready to save subscription to database");
+
     await subscription.save();
 
     // Log the subscription creation success

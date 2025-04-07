@@ -42,15 +42,14 @@ async function createOffer(req, res) {
 
 async function getOffers(req, res) {
   try {
-    console.log("Received request to get offers.");
-
     // Fetch offers from the database
     const offers = await Offer.find();
 
     console.log(`Found ${offers.length} offers in the database.`);
 
-    // Simplify the offer response
+    // Simplify the offer response, including the offer's id
     const simplifiedOffers = offers.map((offer) => ({
+      id: offer._id,
       name: offer.name,
       subtitle: offer.subtitle,
       description: offer.description,
@@ -69,6 +68,7 @@ async function getOffers(req, res) {
     });
   }
 }
+
 
 async function deleteOffer(req, res) {
   try {
