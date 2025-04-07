@@ -56,10 +56,29 @@ router.post("/register", async (req, res) => {
       address:"", 
       city:"", 
     });
-        await user.save();
+    await user.save();
+
+    // Generate token after user registration
+    const token = jwt.sign(
+      { _id: user._id, email: user.email, companyName: user.companyName },
+      process.env.SECRET_KEY,
+      { expiresIn: '2w' } // Optional: Token expiration time
+    );
 
     console.info(`User registered successfully: ${email}`);
-    res.status(201).json({ message: "User registered successfully" });
+    res.status(201).json({ 
+      message: "User registered successfully", 
+      token, // Include the token in the response
+      user: {
+        email: user.email,
+        companyName: user.companyName,
+        balance: user.balance,
+        zipCode: user.zipCode,
+        country: user.country,
+        address: user.address,
+        city: user.city
+      }
+    });
   } catch (error) {
     console.error("Registration failed with error:", error);
     res.status(500).json({ message: "Registration failed" });
