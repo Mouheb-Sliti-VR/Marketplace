@@ -6,6 +6,7 @@ const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
 const validator = require('validator');
 const axios = require('axios');
+const Subscription = require("../Models/subscriptionModel.js");
 const FormData = require('form-data');
 const {authenticateToken} = require ('../Middleware/authMiddleware.js');
 const { getLatestMediaURLsForUser,uploadFile,saveFileToDBAndUpdateUser } = require('../Controllers/fileHandler.js'); 

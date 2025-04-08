@@ -20,6 +20,10 @@ const OfferSchema = new mongoose.Schema({
         type: Date, // Expiration date for the offer
         required: true,
     }
-}, { timestamps: true });
+}, { 
+    timestamps: true // Automatically manage createdAt and updatedAt fields
+});
 
-module.exports = mongoose.model("Offer", OfferSchema);
+const Offer = mongoose.model("Offer", OfferSchema);
+
+module.exports = Offer;

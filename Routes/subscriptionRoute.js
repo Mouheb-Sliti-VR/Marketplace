@@ -8,7 +8,15 @@ const { authenticateToken } = require('../Middleware/authMiddleware');
 router.post('/subscribe', authenticateToken, createSubscription);
 
 // Route to get user subscriptions
-router.get('/getUserSubs', authenticateToken, getUserSubscriptions);
+router.get('/getUserSubs', authenticateToken, async (req, res) => {
+    try {
+        const userInfo = await getUserSubscriptions(req);
+        res.json({ user: userInfo });
+      } catch (error) {
+        console.error("Error occurred while fetching user information:", error.message);
+        res.status(500).json({ error: error.message });
+      }
+});
 
 
 module.exports = router;
