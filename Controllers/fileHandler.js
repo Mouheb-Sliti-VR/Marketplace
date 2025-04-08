@@ -82,7 +82,7 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
       console.log("Media saved successfully with ID:", media.secureId, media.filename);
       
       // Set the URL after saving
-      media.url = `https://marketplace-1-5g2u.onrender.com/media/${media.secureId}`;
+      media.url = `https://marketplace-vr.onrender.com/media/${media.secureId}`;
       await media.save(); // Save the updated media object with the URL
   } catch (err) {
       console.error("[saveFileToDBAndUpdateUser] Error saving media to DB:", err);
@@ -132,7 +132,7 @@ async function getLatestMediaURLsForUser(email) {
           throw new Error('User not found');
       }
 
-      const baseUrl = 'https://marketplace-1-5g2u.onrender.com/media';
+      const baseUrl = 'https://marketplace-vr.onrender.com/media';
       return {
           Logo: user.logo ? `${baseUrl}/${user.logo.secureId}` : null,
           Image1: user.image1 ? `${baseUrl}/${user.image1.secureId}` : null,

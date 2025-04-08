@@ -5,7 +5,7 @@ const ThreeDModel = require("../Models/ThreeDModel");
 const { v4: uuidv4 } = require('uuid');
 
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
-const BASE_URL = 'https://marketplace-1-5g2u.onrender.com';
+const BASE_URL = 'https://marketplace-vr.onrender.com';
 
 // Ensure Upload Directory Exists
 const ensureDir = async (dir) => fs.access(dir).catch(() => fs.mkdir(dir, { recursive: true }));

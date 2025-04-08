@@ -175,7 +175,7 @@ router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) =>
     res.json({
       message: "Profile updated successfully",
       user: {
-        logo: user.logo ? `https://marketplace-1-5g2u.onrender.com/media/${user.logo.secureId}` : null,
+        logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
         address: user.address,
         zipCode: user.zipCode,
         city: user.city,
@@ -213,10 +213,10 @@ router.get('/getUserDetails', authenticateToken, async (req, res) => {
     // Respond with user details
     res.json({
       user: {
-        logo: user.logo ? `https://marketplace-1-5g2u.onrender.com/media/${user.logo.secureId}` : null,
-        image1: user.image1 ? `https://marketplace-1-5g2u.onrender.com/media/${user.image1.secureId}` : null,
-        image2: user.image2 ? `https://marketplace-1-5g2u.onrender.com/media/${user.image2.secureId}` : null,
-        video: user.video ? `https://marketplace-1-5g2u.onrender.com/media/${user.video.secureId}` : null,
+        logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
+        image1: user.image1 ? `https://marketplace-vr.onrender.com/media/${user.image1.secureId}` : null,
+        image2: user.image2 ? `https://marketplace-vr.onrender.com/media/${user.image2.secureId}` : null,
+        video: user.video ? `https://marketplace-vr.onrender.com/media/${user.video.secureId}` : null,
         address: user.address,
         zipCode: user.zipCode,
         city: user.city,

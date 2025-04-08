@@ -94,7 +94,7 @@ async function getUserSubscriptions(req) {
   }).filter((offer) => offer !== null); // Filter out null offers
 
   return {
-    logo: user.logo ? `https://marketplace-1-5g2u.onrender.com/media/${user.logo.secureId}` : null,
+    logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
     email: user.email,
     companyName: user.companyName,
     balance: user.balance,
