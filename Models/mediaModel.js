@@ -10,7 +10,7 @@ const mediaSchema = new mongoose.Schema({
   },
   type: { 
     type: String, 
-    enum: ['image', 'video'], 
+    enum: ['image', 'video', 'model'], 
     required: true 
   },  // Type of the media file
   filename: { 

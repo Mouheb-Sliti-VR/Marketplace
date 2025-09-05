@@ -11,16 +11,30 @@ const userSchema = new mongoose.Schema(
     },
     companyName: { type: String, required: true },
     password: { type: String, required: true },
-    balance: { 
-      type: Number, 
-      default: 500, 
-      min: 0 // Ensure balance cannot be negative
+
+    // Company logo (single media reference)
+    logo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Media'
     },
 
-    logo: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' },
-    image1: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, 
-    image2: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, 
-    video: { type: mongoose.Schema.Types.ObjectId, ref: 'Media' }, 
+    // Uploaded images (array, flexible per offer)
+    images: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Media'
+    }],
+
+    // Uploaded videos (array, flexible per offer)
+    videos: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Media'
+    }],
+
+    // 3D model (single reference, max one per user)
+    model3d: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Media'
+    },
 
     address: { type: String, default: "" },
     zipCode: { type: String, default: "" },

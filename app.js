@@ -5,10 +5,9 @@ const cors = require("cors");
 const path = require("path");
 
 const registerRoute = require("./Routes/AuthenticationRoute");
-const latestMediaURLsRoute = require("./Routes/MediaRoute");
+const mediaRoute = require("./Routes/MediaRoute");
 const ThreeDRoute = require("./Routes/3dMediaRoute");
-const offersRoute = require("./Routes/offersRoute");
-const subscriptionRoute =require ("./Routes/subscriptionRoute");
+const catalogRoute = require("./Routes/catalogRoute");
 
 
 const app = express();
@@ -27,12 +26,14 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
+// Define base API path
+const API_BASE_PATH = process.env.NODE_ENV === 'production' ? '/api' : '';
+
 // Routes
-app.use("/auth", registerRoute);
-app.use("/media", latestMediaURLsRoute);
-app.use("/3d", ThreeDRoute);
-app.use("/offers", offersRoute);
-app.use("/offers", subscriptionRoute);
+app.use(`${API_BASE_PATH}/auth`, registerRoute);
+app.use(`${API_BASE_PATH}/media`, mediaRoute);
+app.use(`${API_BASE_PATH}/3d`, ThreeDRoute);
+app.use(`${API_BASE_PATH}/catalog`, catalogRoute);
 
 // Health Check Route
 app.get("/health-check", (req, res) => res.status(200).json({ status: "up", timestamp: new Date() }));

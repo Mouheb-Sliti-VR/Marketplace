@@ -1,5 +1,5 @@
 ----------------------------
-* * MARKETPLACE ALL APIs * *  
+* * MARKETPLACE Few APIs * *  
 ----------------------------
 
 CREATE_ACCOUNT : http://localhost:3000/auth/register
@@ -24,24 +24,28 @@ Payload :
 
 -----------------------------------------------------------
 
+
 UPLOAD_MEDIA   :  http://localhost:3000/media/uploadMedia
 BEARER_TOKEN
 Protocol : POST
 Payload  :  Form-data  
 ___________________________________________
-       KEY       |      VALUE
+  KEY       |      VALUE
 ___________________________________________
-media (File)     | *Upload an image here* 
-fieldName (text) | image1 / image2 / video
+logo (File)      | *Upload a logo image here* (optional)
+images[] (File)  | *Upload one or more images here* (optional)
+videos[] (File)  | *Upload one or more videos here* (optional)
+model3d (File)   | *Upload a 3D model (.glb) here* (optional)
 ___________________________________________
 
 ------------------------------------------------------------
+
 
 FETCH_MEDIA   :  http://localhost:3000/media/latestMediaURLs
 Protocol : POST
 Payload : 
 {
-  "companyName": "test",
+  "email": "test@gmail.com"
 }
 
 -------------------------------------------

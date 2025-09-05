@@ -6,7 +6,6 @@ const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
 const validator = require('validator');
 const axios = require('axios');
-const Subscription = require("../Models/subscriptionModel.js");
 const FormData = require('form-data');
 const {authenticateToken} = require ('../Middleware/authMiddleware.js');
 const { getLatestMediaURLsForUser,uploadFile,saveFileToDBAndUpdateUser } = require('../Controllers/fileHandler.js'); 
@@ -51,7 +50,6 @@ router.post("/register", async (req, res) => {
       email, 
       companyName, 
       password: hashedPassword, 
-      balance: 500, 
       zipCode:"", 
       country:"", 
       address:"", 
@@ -69,11 +67,10 @@ router.post("/register", async (req, res) => {
     console.info(`User registered successfully: ${email}`);
     res.status(201).json({ 
       message: "User registered successfully", 
-      token, // Include the token in the response
+      token,
       user: {
         email: user.email,
         companyName: user.companyName,
-        balance: user.balance,
         zipCode: user.zipCode,
         country: user.country,
         address: user.address,
@@ -115,28 +112,26 @@ router.post("/login", async (req, res) => {
           { expiresIn: '2w' } // Optional: Token expiration time
       );
 
-      // Log all relevant information
-      console.info(`User logged in successfully: ${email}`);
-      console.info(`Company Name: ${user.companyName}`);
-      console.info(`Token: ${token}`);
-      console.info(`Balance: ${user.balance}`);
-      console.info(`Zip Code: ${user.zipCode}`);
-      console.info(`Country: ${user.country}`);
-      console.info(`Address: ${user.address}`);
-      console.info(`City: ${user.city}`);
+    // Log all relevant information
+    console.info(`User logged in successfully: ${email}`);
+    console.info(`Company Name: ${user.companyName}`);
+    console.info(`Token: ${token}`);
+    console.info(`Zip Code: ${user.zipCode}`);
+    console.info(`Country: ${user.country}`);
+    console.info(`Address: ${user.address}`);
+    console.info(`City: ${user.city}`);
 
-      // Send response with all relevant information
-      return res.status(200).send({
-          message: `${user.companyName} has successfully connected with this token`,
-          token,
-          balance: user.balance,
-          email: user.email, // Include email in the response if needed
-          companyName: user.companyName, // Include company name in the response if needed
-          zipCode: user.zipCode,
-          country: user.country,
-          address: user.address,
-          city: user.city
-      });
+    // Send response with all relevant information
+    return res.status(200).send({
+      message: `${user.companyName} has successfully connected with this token`,
+      token,
+      email: user.email,
+      companyName: user.companyName,
+      zipCode: user.zipCode,
+      country: user.country,
+      address: user.address,
+      city: user.city
+    });
 
   } catch (error) {
       console.error("Login failed with error:", error);
@@ -146,31 +141,12 @@ router.post("/login", async (req, res) => {
 
 router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) => {
   try {
-    const { address, zipCode, city, country } = req.body;
-
-    // Validate required fields
-    if (!address || !zipCode || !city || !country) {
-      return res.status(400).json({ error: 'All fields (address, zipCode, city, country) are required.' });
-    }
-
-    let user;
-
-    // Check for uploaded file
-    if (req.file) {
-      user = await saveFileToDBAndUpdateUser(req, 'logo');
-    } else {
-      user = await User.findOne({ email: req.user.email }).populate('logo');
-      if (!user) {
-        return res.status(404).json({ error: 'User not found.' });
-      }
-    }
-
-    // Update user profile fields
-    Object.assign(user, { address, zipCode, city, country });
-
-    // Save the updated user
-    await user.save();
-
+    // All updates will be handled by saveFileToDBAndUpdateUser
+    const updatedUser = await saveFileToDBAndUpdateUser(req);
+    
+    // Get the full user details with populated logo
+    const user = await User.findById(updatedUser._id).populate('logo');
+    
     // Respond with updated user information
     res.json({
       message: "Profile updated successfully",
@@ -183,6 +159,7 @@ router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) =>
       }
     });
   } catch (error) {
+    console.error('Profile update error:', error);
     res.status(500).json({ error: "Failed to update profile", details: error.message });
   }
 });
@@ -197,10 +174,10 @@ router.get('/getUserDetails', authenticateToken, async (req, res) => {
 
     // Retrieve the user details based on the authenticated email (or user ID)
     const user = await User.findOne({ email: req.user.email })
-      .populate('logo')  // Populate the 'logo' media
-      .populate('image1') // Optionally populate other media (if needed)
-      .populate('image2') // Optionally populate other media (if needed)
-      .populate('video'); // Optionally populate video media (if needed)
+      .populate('logo')
+      .populate('images')
+      .populate('videos')
+      .populate('model3d');
 
     if (!user) {
       console.log("User not found for email: " + req.user.email);
@@ -214,16 +191,15 @@ router.get('/getUserDetails', authenticateToken, async (req, res) => {
     res.json({
       user: {
         logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
-        image1: user.image1 ? `https://marketplace-vr.onrender.com/media/${user.image1.secureId}` : null,
-        image2: user.image2 ? `https://marketplace-vr.onrender.com/media/${user.image2.secureId}` : null,
-        video: user.video ? `https://marketplace-vr.onrender.com/media/${user.video.secureId}` : null,
+        images: user.images ? user.images.map(img => `https://marketplace-vr.onrender.com/media/${img.secureId}`) : [],
+        videos: user.videos ? user.videos.map(vid => `https://marketplace-vr.onrender.com/media/${vid.secureId}`) : [],
+        model3d: user.model3d ? `https://marketplace-vr.onrender.com/media/${user.model3d.secureId}` : null,
         address: user.address,
         zipCode: user.zipCode,
         city: user.city,
         country: user.country,
         email: user.email,
-        companyName: user.companyName,
-        balance: user.balance,
+        companyName: user.companyName
       }
     });
   } catch (error) {
@@ -238,34 +214,30 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
     // Find users who have at least one media field populated
     const usersWithFiles = await User.find({
       $or: [
-        { image1: { $exists: true } },
-        { image2: { $exists: true } },
-        { video: { $exists: true } },
-        { logo: { $exists: true } },
+        { logo: { $exists: true, $ne: null } },
+        { images: { $exists: true, $not: { $size: 0 } } },
+        { videos: { $exists: true, $not: { $size: 0 } } },
+        { model3d: { $exists: true, $ne: null } }
       ],
     });
 
-    // Total number of partners with uploaded files
     const totalPartners = usersWithFiles.length;
 
-    // Fetch media URLs using secureId for each user and include balance
     const usersWithUrls = await Promise.all(usersWithFiles.map(async (user) => {
-      const mediaUrls = await getLatestMediaURLsForUser(user.email); // Uses secureId-based URLs
-      console.log("Media URLs for user:", mediaUrls); 
-      
-
+      await user.populate('logo');
+      await user.populate('images');
+      await user.populate('videos');
+      await user.populate('model3d');
       return {
         email: user.email,
         companyName: user.companyName,
-        balance: user.balance, 
-        Logo: mediaUrls.Logo,   
-        Image1: mediaUrls.Image1,
-        Image2: mediaUrls.Image2,
-        Video: mediaUrls.Video
+        logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
+        images: user.images ? user.images.map(img => `https://marketplace-vr.onrender.com/media/${img.secureId}`) : [],
+        videos: user.videos ? user.videos.map(vid => `https://marketplace-vr.onrender.com/media/${vid.secureId}`) : [],
+        model3d: user.model3d ? `https://marketplace-vr.onrender.com/media/${user.model3d.secureId}` : null
       };
     }));
 
-    // Construct the response object
     res.json({ users: usersWithUrls, totalPartners });
   } catch (error) {
     console.error(error);
@@ -273,72 +245,5 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
   }
 });
 
-// Route to show user's balance
-router.post("/show-balance", async (req, res) => {
-  try {
-    // Log only important information
-    const companyName = req.body.companyName;
-    console.log("Incoming request:", companyName);
-
-    if (!companyName) {
-      return res.status(400).json({ error: "Partner name is required" });
-    }
-
-    const user = await User.findOne({ companyName });
-    if (!user) {
-      return res.status(404).json({ error: "Partner not found" });
-    }
-
-    // Log only email and balance
-    console.log("Partner found: Name:", user.companyName, "balance:", user.balance);
-
-    res.json({ balance: user.balance });
-  } catch (error) {
-    console.error("Error in /show-balance:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Route to add more balance to user's account
-router.post("/add-balance", async (req, res) => {
-  try {
-    const { email, amount } = req.body;
-    // Find user by email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).send("User not found");
-    }
-    // Add balance
-    user.balance += amount;
-    await user.save();
-    res.json({ message: "Balance added successfully", balance: user.balance });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Route to decrease balance from user's account
-router.post("/decrease-balance", async (req, res) => {
-  try {
-    const { companyName, amount } = req.body;
-    // Find user by email
-    const user = await User.findOne({ companyName });
-    if (!user) {
-      return res.status(404).send("User not found");
-    }
-    // Check if user has sufficient balance
-    if (user.balance < amount) {
-      return res.status(400).send("Insufficient balance");
-    }
-    // Decrease balance
-    user.balance -= amount;
-    await user.save();
-    res.json({ message: "Balance decreased successfully", balance: user.balance });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
 
 module.exports = router;

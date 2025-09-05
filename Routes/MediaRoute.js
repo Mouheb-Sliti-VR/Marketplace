@@ -4,27 +4,28 @@ const { uploadFile, saveFileToDBAndUpdateUser, getLatestMediaURLsForUser } = req
 const {authenticateToken} = require('../Middleware/authMiddleware');
 const Media = require('../Models/mediaModel');
 
+// Test route to verify the endpoint is working
+router.get('/test', (req, res) => {
+    res.json({ message: 'Media route is working' });
+});
 
-router.post('/uploadMedia', authenticateToken,uploadFile, async (req, res) => {
+
+router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
+    console.log('Upload endpoint hit');
+    console.log('Request body:', req.body);
+    console.log('Files:', req.files);
+    console.log('Headers:', req.headers);
+    
     try {
-        const { fieldName } = req.body;
+        // Save files to the DB and update the user with the media references
+        const updatedUser = await saveFileToDBAndUpdateUser(req);
 
-        if (!fieldName) {
-            return res.status(400).json({ error: 'fieldName is required in the request body' });
-        }
-
-        // Save file to the DB and update the user with the media reference
-        const updatedUser = await saveFileToDBAndUpdateUser(req, fieldName);
-
-        // Respond with the updated user data (media references)
-        const response = {
-            logo: updatedUser.logo,
-            image1: updatedUser.image1,
-            image2: updatedUser.image2,
-            video: updatedUser.video
-        };
-
-        res.json(response);
+        // Respond with the updated user data
+        res.json({
+            message: 'Files uploaded successfully',
+            uploadedFiles: req.files.map(file => file.originalname),
+            user: updatedUser
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: error.message || 'Server error' });
