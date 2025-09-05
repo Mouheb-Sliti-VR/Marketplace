@@ -47,59 +47,45 @@ async function getOfferById(offerId) {
  */
 async function validateOrder(data, authToken) {
     try {
-        const offerType = data.selectedOfferId.split('_')[0].toUpperCase();
-        const selections = [];
+        let offerType;
+        if (data.selectedOfferId.startsWith('IMG_')) {
+            offerType = 'IMG';
+        } else if (data.selectedOfferId.startsWith('VIDEO_')) {
+            offerType = 'VIDEO';
+        } else if (data.selectedOfferId.startsWith('3D_MODEL_')) {
+            offerType = '3D_MODEL';
+        } else if (data.selectedOfferId.startsWith('MIXED_')) {
+            offerType = 'MIXED';
+        } else {
+            throw new Error('Invalid offer type');
+        }
 
-        // Handle different offer types
+        // Validate counts based on offer type
         switch(offerType) {
             case 'IMG':
                 if (data.selectedImagesCount > 4) {
                     throw new Error('Image count cannot exceed 4');
                 }
-                selections.push({
-                    offeringId: data.selectedOfferId,
-                    imagesCount: data.selectedImagesCount
-                });
                 break;
 
-            case 'VID':
+            case 'VIDEO':
                 if (data.selectedVideosCount > 2) {
                     throw new Error('Video count cannot exceed 2');
                 }
-                selections.push({
-                    offeringId: data.selectedOfferId,
-                    videosCount: data.selectedVideosCount
-                });
                 break;
 
-            case 'MODEL':
+            case '3D_MODEL':
                 if (data.selectedModelsCount > 1) {
                     throw new Error('3D Model count cannot exceed 1');
                 }
-                selections.push({
-                    offeringId: data.selectedOfferId,
-                    modelsCount: data.selectedModelsCount
-                });
                 break;
 
             case 'MIXED':
-                if (data.selectedImagesCount > 0) {
-                    if (data.selectedImagesCount > 4) {
-                        throw new Error('Image count cannot exceed 4');
-                    }
-                    selections.push({
-                        offeringId: data.selectedOfferId,
-                        imagesCount: data.selectedImagesCount
-                    });
+                if (data.selectedImagesCount > 4) {
+                    throw new Error('Image count cannot exceed 4');
                 }
-                if (data.selectedVideosCount > 0) {
-                    if (data.selectedVideosCount > 2) {
-                        throw new Error('Video count cannot exceed 2');
-                    }
-                    selections.push({
-                        offeringId: data.selectedOfferId,
-                        videosCount: data.selectedVideosCount
-                    });
+                if (data.selectedVideosCount > 2) {
+                    throw new Error('Video count cannot exceed 2');
                 }
                 break;
 
@@ -107,9 +93,32 @@ async function validateOrder(data, authToken) {
                 throw new Error('Invalid offer type');
         }
 
+        const selection = {
+            offeringId: data.selectedOfferId
+        };
+
+        switch(offerType) {
+            case 'IMG':
+                selection.selectedImagesCount = data.selectedImagesCount;
+                break;
+            case 'VIDEO':
+                selection.selectedVideosCount = data.selectedVideosCount;
+                break;
+            case '3D_MODEL':
+                selection.selectedModelsCount = data.selectedModelsCount;
+                break;
+            case 'MIXED':
+                if (data.selectedImagesCount > 0) {
+                    selection.selectedImagesCount = data.selectedImagesCount;
+                }
+                if (data.selectedVideosCount > 0) {
+                    selection.selectedVideosCount = data.selectedVideosCount;
+                }
+                break;
+        }
+
         const orderData = {
-            partyId: data.partnerEmail,
-            selections
+            selections: [selection]
         };
 
         log('info', 'ValidateOrder', { 
