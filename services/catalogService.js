@@ -58,14 +58,28 @@ async function validateOrder(data, authToken) {
             throw new Error('Invalid selection: offeringId is required');
         }
 
+        // Debug logging
+        console.log('Validating selection:', {
+            offeringId: selection.offeringId,
+            fullSelection: selection
+        });
+
         let offerType;
-        if (selection.offeringId.startsWith('IMG_')) {
+        // Log each check
+        console.log('Checking offer type:', {
+            isIMG: selection.offeringId.startsWith('IMG_ADS_OFFER_'),
+            isVIDEO: selection.offeringId.startsWith('VIDEO_ADS_OFFER_'),
+            is3D: selection.offeringId.startsWith('3D_MODEL_ADS_OFFER_'),
+            isMIXED: selection.offeringId.startsWith('MIXED_ADS_OFFER_')
+        });
+
+        if (selection.offeringId.startsWith('IMG_ADS_OFFER_')) {
             offerType = 'IMG';
-        } else if (selection.offeringId.startsWith('VIDEO_')) {
+        } else if (selection.offeringId.startsWith('VIDEO_ADS_OFFER_')) {
             offerType = 'VIDEO';
-        } else if (selection.offeringId.startsWith('3D_MODEL_')) {
+        } else if (selection.offeringId.startsWith('3D_MODEL_ADS_OFFER_')) {
             offerType = '3D_MODEL';
-        } else if (selection.offeringId.startsWith('MIXED_')) {
+        } else if (selection.offeringId.startsWith('MIXED_ADS_OFFER_')) {
             offerType = 'MIXED';
         } else {
             throw new Error('Invalid offer type');

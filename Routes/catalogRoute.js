@@ -40,7 +40,20 @@ router.post('/validate', authenticateToken, async (req, res) => {
         const selectedModelsCount = selection.selectedModelsCount;
 
         // Get offer type from the ID
-        const offerType = selectedOfferId.split('_')[0].toUpperCase();
+        let offerType;
+        if (selectedOfferId.startsWith('IMG_ADS_OFFER_')) {
+            offerType = 'IMG';
+        } else if (selectedOfferId.startsWith('VIDEO_ADS_OFFER_')) {
+            offerType = 'VIDEO';
+        } else if (selectedOfferId.startsWith('3D_MODEL_ADS_OFFER_')) {
+            offerType = '3D_MODEL';
+        } else if (selectedOfferId.startsWith('MIXED_ADS_OFFER_')) {
+            offerType = 'MIXED';
+        } else {
+            return res.status(400).json({ 
+                error: 'Invalid offer type' 
+            });
+        }
         
         // Validate based on offer type
         switch(offerType) {
@@ -51,14 +64,14 @@ router.post('/validate', authenticateToken, async (req, res) => {
                     });
                 }
                 break;
-            case 'VID':
+            case 'VIDEO':
                 if (!selectedVideosCount) {
                     return res.status(400).json({ 
                         error: 'For video offers, selectedVideosCount is required' 
                     });
                 }
                 break;
-            case 'MODEL':
+            case '3D_MODEL':
                 if (!selectedModelsCount) {
                     return res.status(400).json({ 
                         error: 'For 3D model offers, selectedModelsCount is required' 
