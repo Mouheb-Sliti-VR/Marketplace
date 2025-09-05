@@ -120,12 +120,15 @@ async function validateOrder(data, authToken) {
             offerType
         });
 
+        const cleanToken = authToken.replace('Bearer ', '');
+        const token = `Bearer ${cleanToken}`;
+
         const response = await axios.post(
             process.env.VALIDATE_URL,
             orderData,
             {
                 headers: {
-                    'Authorization': `Bearer ${authToken}`,
+                    'Authorization': token,
                     'Content-Type': 'application/json'
                 }
             }
