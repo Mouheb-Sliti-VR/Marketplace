@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
+const { getMediaUrl } = require('../utils/urlConfig');
 const validator = require('validator');
 const axios = require('axios');
 const FormData = require('form-data');
@@ -151,7 +152,7 @@ router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) =>
     res.json({
       message: "Profile updated successfully",
       user: {
-        logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
+        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
         address: user.address,
         zipCode: user.zipCode,
         city: user.city,
@@ -190,10 +191,10 @@ router.get('/getUserDetails', authenticateToken, async (req, res) => {
     // Respond with user details
     res.json({
       user: {
-        logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
-        images: user.images ? user.images.map(img => `https://marketplace-vr.onrender.com/media/${img.secureId}`) : [],
-        videos: user.videos ? user.videos.map(vid => `https://marketplace-vr.onrender.com/media/${vid.secureId}`) : [],
-        model3d: user.model3d ? `https://marketplace-vr.onrender.com/media/${user.model3d.secureId}` : null,
+        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+        images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
+        videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
+        model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null,
         address: user.address,
         zipCode: user.zipCode,
         city: user.city,
@@ -231,10 +232,10 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
       return {
         email: user.email,
         companyName: user.companyName,
-        logo: user.logo ? `https://marketplace-vr.onrender.com/media/${user.logo.secureId}` : null,
-        images: user.images ? user.images.map(img => `https://marketplace-vr.onrender.com/media/${img.secureId}`) : [],
-        videos: user.videos ? user.videos.map(vid => `https://marketplace-vr.onrender.com/media/${vid.secureId}`) : [],
-        model3d: user.model3d ? `https://marketplace-vr.onrender.com/media/${user.model3d.secureId}` : null
+        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+        images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
+        videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
+        model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
       };
     }));
 

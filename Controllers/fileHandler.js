@@ -2,6 +2,7 @@ const multer = require('multer');
 const Media = require('../Models/mediaModel');
 const User = require('../Models/userModel');
 const crypto = require('crypto');
+const { getMediaUrl } = require('../utils/urlConfig');
 
 // Generate unique secure IDs for files
 const generateSecureFileId = () => crypto.randomBytes(16).toString('hex');
@@ -139,7 +140,7 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
       try {
         await media.save();
-        media.url = `https://marketplace-vr.onrender.com/media/${media.secureId}`;
+        media.url = getMediaUrl(media.secureId);
         await media.save();
         userUpdate.logo = media._id;
         console.log('[Media] Logo saved successfully');
@@ -171,7 +172,7 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
       try {
         await media.save();
-        media.url = `https://marketplace-vr.onrender.com/media/${media.secureId}`;
+        media.url = getMediaUrl(media.secureId);
         await media.save();
 
         // Categorize media based on type
@@ -249,12 +250,11 @@ async function getLatestMediaURLsForUser(email) {
       throw new Error('User not found');
     }
 
-    const baseUrl = 'https://marketplace-vr.onrender.com/media';
     return {
-      logo: user.logo ? `${baseUrl}/${user.logo.secureId}` : null,
-      images: user.images ? user.images.map(img => `${baseUrl}/${img.secureId}`) : [],
-      videos: user.videos ? user.videos.map(vid => `${baseUrl}/${vid.secureId}`) : [],
-      model3d: user.model3d ? `${baseUrl}/${user.model3d.secureId}` : null
+      logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+      images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
+      videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
+      model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
     };
   } catch (error) {
     console.error(`[Media] Failed to get media URLs for user: ${email}, error: ${error.message}`);

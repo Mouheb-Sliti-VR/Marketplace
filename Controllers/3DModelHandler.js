@@ -5,7 +5,7 @@ const ThreeDModel = require("../Models/ThreeDModel");
 const { v4: uuidv4 } = require('uuid');
 
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
-const BASE_URL = 'https://marketplace-vr.onrender.com';
+const { BASE_DOMAIN, API_PREFIX } = require('../utils/urlConfig');
 
 // Ensure Upload Directory Exists
 const ensureDir = async (dir) => fs.access(dir).catch(() => fs.mkdir(dir, { recursive: true }));
@@ -73,8 +73,8 @@ const getAll3DModels = async () => {
         models: models.map(m => ({
             name: m.name,
             description: m.description,
-            modelUrl: `${BASE_URL}/uploads/3dmodels/${m.filename}`, 
-            imageUrl: `${BASE_URL}${m.imageUrl}`
+            modelUrl: `${BASE_DOMAIN}${API_PREFIX}/uploads/3dmodels/${m.filename}`, 
+            imageUrl: `${BASE_DOMAIN}${API_PREFIX}${m.imageUrl}`
         }))
     };    
 };
