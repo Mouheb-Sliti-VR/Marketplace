@@ -39,22 +39,33 @@ async function getOfferById(offerId) {
 /**
  * Validates an order with the selections
  * @param {Object} data - The order data from the frontend
- * @param {string} data.partnerEmail - The email of the partner (will be used as partyId)
- * @param {string} data.selectedOfferId - The ID of the selected offer
- * @param {number} data.selectedImagesCount - Number of images selected by the partner
+ * @param {Array} data.selections - Array of selections
+ * @param {string} data.selections[].offeringId - The ID of the selected offer
+ * @param {number} [data.selections[].selectedImagesCount] - Number of images selected
+ * @param {number} [data.selections[].selectedVideosCount] - Number of videos selected
+ * @param {number} [data.selections[].selectedModelsCount] - Number of 3D models selected
  * @param {string} authToken - The authentication token
  * @returns {Promise<Object>} The validation response including quoteId
  */
 async function validateOrder(data, authToken) {
     try {
+        if (!data.selections || !Array.isArray(data.selections) || data.selections.length === 0) {
+            throw new Error('Invalid request format: selections array is required');
+        }
+
+        const selection = data.selections[0];
+        if (!selection.offeringId) {
+            throw new Error('Invalid selection: offeringId is required');
+        }
+
         let offerType;
-        if (data.selectedOfferId.startsWith('IMG_')) {
+        if (selection.offeringId.startsWith('IMG_')) {
             offerType = 'IMG';
-        } else if (data.selectedOfferId.startsWith('VIDEO_')) {
+        } else if (selection.offeringId.startsWith('VIDEO_')) {
             offerType = 'VIDEO';
-        } else if (data.selectedOfferId.startsWith('3D_MODEL_')) {
+        } else if (selection.offeringId.startsWith('3D_MODEL_')) {
             offerType = '3D_MODEL';
-        } else if (data.selectedOfferId.startsWith('MIXED_')) {
+        } else if (selection.offeringId.startsWith('MIXED_')) {
             offerType = 'MIXED';
         } else {
             throw new Error('Invalid offer type');
@@ -63,28 +74,28 @@ async function validateOrder(data, authToken) {
         // Validate counts based on offer type
         switch(offerType) {
             case 'IMG':
-                if (data.selectedImagesCount > 4) {
+                if (selection.selectedImagesCount > 4) {
                     throw new Error('Image count cannot exceed 4');
                 }
                 break;
 
             case 'VIDEO':
-                if (data.selectedVideosCount > 2) {
+                if (selection.selectedVideosCount > 2) {
                     throw new Error('Video count cannot exceed 2');
                 }
                 break;
 
             case '3D_MODEL':
-                if (data.selectedModelsCount > 1) {
+                if (selection.selectedModelsCount > 1) {
                     throw new Error('3D Model count cannot exceed 1');
                 }
                 break;
 
             case 'MIXED':
-                if (data.selectedImagesCount > 4) {
+                if (selection.selectedImagesCount > 4) {
                     throw new Error('Image count cannot exceed 4');
                 }
-                if (data.selectedVideosCount > 2) {
+                if (selection.selectedVideosCount > 2) {
                     throw new Error('Video count cannot exceed 2');
                 }
                 break;
@@ -93,39 +104,14 @@ async function validateOrder(data, authToken) {
                 throw new Error('Invalid offer type');
         }
 
-        const selection = {
-            offeringId: data.selectedOfferId
-        };
-
-        switch(offerType) {
-            case 'IMG':
-                selection.selectedImagesCount = data.selectedImagesCount;
-                break;
-            case 'VIDEO':
-                selection.selectedVideosCount = data.selectedVideosCount;
-                break;
-            case '3D_MODEL':
-                selection.selectedModelsCount = data.selectedModelsCount;
-                break;
-            case 'MIXED':
-                if (data.selectedImagesCount > 0) {
-                    selection.selectedImagesCount = data.selectedImagesCount;
-                }
-                if (data.selectedVideosCount > 0) {
-                    selection.selectedVideosCount = data.selectedVideosCount;
-                }
-                break;
-        }
-
+        // We can just pass through the selections array as is since it's already in the correct format
         const orderData = {
-            selections: [selection]
+            selections: data.selections
         };
 
+        // Log the exact payload being sent to the API
         log('info', 'ValidateOrder', { 
-            offerId: data.selectedOfferId,
-            imagesCount: data.selectedImagesCount,
-            videosCount: data.selectedVideosCount,
-            modelsCount: data.selectedModelsCount,
+            payload: orderData,
             offerType
         });
 

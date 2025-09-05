@@ -17,14 +17,27 @@ router.get('/items', async (req, res) => {
 // Route to validate an order
 router.post('/validate', authenticateToken, async (req, res) => {
     try {
-        const { selectedOfferId, selectedImagesCount, selectedVideosCount, selectedModelsCount } = req.body;
+        const { selections } = req.body;
         
-        // Check if offeringId exists
-        if (!selectedOfferId) {
+        // Check if selections array exists and has at least one item
+        if (!selections || !Array.isArray(selections) || selections.length === 0) {
             return res.status(400).json({ 
-                error: 'Invalid request body. Required: selectedOfferId' 
+                error: 'Invalid request body. Required: selections array with at least one item' 
             });
         }
+
+        // Get the first selection (we currently only support one selection)
+        const selection = selections[0];
+        if (!selection.offeringId) {
+            return res.status(400).json({ 
+                error: 'Invalid selection. Required: offeringId' 
+            });
+        }
+
+        const selectedOfferId = selection.offeringId;
+        const selectedImagesCount = selection.selectedImagesCount;
+        const selectedVideosCount = selection.selectedVideosCount;
+        const selectedModelsCount = selection.selectedModelsCount;
 
         // Get offer type from the ID
         const offerType = selectedOfferId.split('_')[0].toUpperCase();
@@ -65,13 +78,14 @@ router.post('/validate', authenticateToken, async (req, res) => {
                 });
         }
 
-        // Create validation data using authenticated user's email
+        // Create validation data keeping the original selections format
         const validationData = {
-            partnerEmail: req.user.email,
-            selectedOfferId,
-            selectedImagesCount: selectedImagesCount ? parseInt(selectedImagesCount, 10) : 0,
-            selectedVideosCount: selectedVideosCount ? parseInt(selectedVideosCount, 10) : 0,
-            selectedModelsCount: selectedModelsCount ? parseInt(selectedModelsCount, 10) : 0
+            selections: [{
+                offeringId: selectedOfferId,
+                ...(selectedImagesCount && { selectedImagesCount: parseInt(selectedImagesCount, 10) }),
+                ...(selectedVideosCount && { selectedVideosCount: parseInt(selectedVideosCount, 10) }),
+                ...(selectedModelsCount && { selectedModelsCount: parseInt(selectedModelsCount, 10) })
+            }]
         };
 
         // Forward the token from the authenticated request
