@@ -304,17 +304,47 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
   console.log('[Media] Preparing user update:', {
     userId: req.user._id,
-    updateData: userUpdate
+    updateData: JSON.stringify(userUpdate)
   });
 
   let user;
   try {
+    // Ensure we have a valid update object for MongoDB
+    const finalUpdate = {};
+    
+    // Handle profile fields
+    if (userUpdate.address) finalUpdate.address = userUpdate.address;
+    if (userUpdate.zipCode) finalUpdate.zipCode = userUpdate.zipCode;
+    if (userUpdate.city) finalUpdate.city = userUpdate.city;
+    if (userUpdate.country) finalUpdate.country = userUpdate.country;
+    
+    // Handle logo update
+    if (userUpdate.logo) {
+      finalUpdate.logo = userUpdate.logo;
+      console.log('[Media] Including logo in update:', finalUpdate.logo);
+    }
+    
+    // Handle array updates ($push operations)
+    if (userUpdate.$push) {
+      finalUpdate.$push = userUpdate.$push;
+    }
+
+    console.log('[Media] Final update object:', {
+      finalUpdate: JSON.stringify(finalUpdate),
+      hasLogo: !!finalUpdate.logo
+    });
+
     // First, apply the update
     user = await User.findOneAndUpdate(
       { _id: req.user._id },
-      userUpdate,
-      { new: true, runValidators: true }
+      finalUpdate,
+      { 
+        new: true, 
+        runValidators: true 
+      }
     );
+
+    console.log('[Media] User updated, fetching with populated fields');
 
     // Then fetch the updated user with populated fields
     user = await User.findById(user._id)
@@ -351,16 +381,47 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     throw new Error('User not found');
   }
 
-  // Verify the logo was properly linked
-  if (userUpdate.logo && (!user.logo || user.logo.toString() !== userUpdate.logo.toString())) {
-    console.error('[Media] Logo update verification failed:', {
-      expected: userUpdate.logo,
-      actual: user.logo
-    });
-    throw new Error('Logo update verification failed');
-  }
+    // Verify the logo was properly linked and log the verification process
+  if (userUpdate.logo) {
+    console.log('[Media] Starting logo verification process');
+    
+    // First verify the media exists
+    let logoExists;
+    try {
+      logoExists = await Media.findById(userUpdate.logo).lean();
+      console.log('[Media] Logo lookup result:', logoExists ? 'Found' : 'Not found');
+    } catch (err) {
+      console.error('[Media] Error looking up logo:', err);
+      throw new Error('Error verifying logo in database');
+    }
 
-  // Build a clean user response with proper URL generation
+    if (!logoExists) {
+      console.error('[Media] Logo media not found in database:', userUpdate.logo);
+      throw new Error('Logo media not found in database');
+    }
+
+    // Then verify the user link
+    const updatedUser = await User.findById(user._id)
+      .populate('logo')
+      .lean();
+    
+    console.log('[Media] User logo verification:', {
+      updateLogoId: userUpdate.logo.toString(),
+      userLogoId: updatedUser.logo?._id?.toString(),
+      logoExists: !!logoExists,
+      userHasLogo: !!updatedUser.logo
+    });
+
+    if (!updatedUser.logo || updatedUser.logo._id.toString() !== userUpdate.logo.toString()) {
+      console.error('[Media] Logo link verification failed:', {
+        expected: userUpdate.logo,
+        actual: updatedUser.logo?._id
+      });
+      throw new Error('Logo update verification failed - link mismatch');
+    }
+
+    console.log('[Media] Logo verification completed successfully');
+  }  // Build a clean user response with proper URL generation
   const cleanUser = {
     _id: user._id,
     email: user.email,
