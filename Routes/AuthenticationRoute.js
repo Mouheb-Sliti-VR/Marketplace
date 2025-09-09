@@ -143,20 +143,23 @@ router.post("/login", async (req, res) => {
 router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) => {
   try {
     // All updates will be handled by saveFileToDBAndUpdateUser
-    const updatedUser = await saveFileToDBAndUpdateUser(req);
+    const updatedData = await saveFileToDBAndUpdateUser(req);
     
-    // Get the full user details with populated logo
-    const user = await User.findById(updatedUser._id).populate('logo');
-    
-    // Respond with updated user information
+    // The updated data already contains everything we need, including the populated URLs
     res.json({
       message: "Profile updated successfully",
       user: {
-        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
-        address: user.address,
-        zipCode: user.zipCode,
-        city: user.city,
-        country: user.country,
+        _id: updatedData.user._id,
+        email: updatedData.user.email,
+        companyName: updatedData.user.companyName,
+        logo: updatedData.user.logo,
+        address: updatedData.user.address,
+        zipCode: updatedData.user.zipCode,
+        city: updatedData.user.city,
+        country: updatedData.user.country,
+        images: updatedData.user.images,
+        videos: updatedData.user.videos,
+        model3d: updatedData.user.model3d
       }
     });
   } catch (error) {
