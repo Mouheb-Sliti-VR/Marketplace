@@ -19,7 +19,14 @@ app.use(express.json());
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); 
+// Serve static files from uploads directory
+app.use(`${API_BASE_PATH}/uploads`, express.static(path.join(__dirname, 'uploads')));
+
+// Error handling for static files
+app.use(`${API_BASE_PATH}/uploads`, (err, req, res, next) => {
+    console.error('Static file error:', err);
+    res.status(404).json({ error: 'File not found' });
+});
 
 // MongoDB Connection
 mongoose.connect(MONGODB_URI)

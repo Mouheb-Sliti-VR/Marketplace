@@ -11,15 +11,8 @@ const { BASE_DOMAIN, API_PREFIX } = require('../utils/urlConfig');
 const ensureDir = async (dir) => fs.access(dir).catch(() => fs.mkdir(dir, { recursive: true }));
 
 // Multer Storage Configuration
-const storage = multer.diskStorage({
-    destination: async (req, file, cb) => {
-        const subDir = file.mimetype.startsWith('image/') ? 'images' : '3dmodels';
-        const fullPath = path.join(UPLOAD_DIR, subDir);
-        await ensureDir(fullPath);
-        cb(null, fullPath);
-    },
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${uuidv4()}-${file.originalname}`)
-});
+// Use memory storage instead of disk storage
+const storage = multer.memoryStorage();
 
 // File Filter
 const fileFilter = (req, file, cb) => {
@@ -55,12 +48,13 @@ const save3DModel = async (req) => {
         throw new Error('Invalid file format: Ensure the model is a .glb/.obj and image is .jpg/.png');
     }
 
-    // Save to DB
+    // Save to DB with file data
     const newModel = new ThreeDModel({
         name,
         description,
-        filename: modelFile.filename, // 3D Model file
-        imageUrl: `/uploads/images/${imageFile.filename}`, // Image file
+        filename: modelFile.originalname,
+        modelData: modelFile.buffer,
+        imageUrl: `data:${imageFile.mimetype};base64,${imageFile.buffer.toString('base64')}`
     });
 
     return await newModel.save();
@@ -68,13 +62,14 @@ const save3DModel = async (req) => {
 
 // Get All 3D Models
 const getAll3DModels = async () => {
-    const models = await ThreeDModel.find();
+    const models = await ThreeDModel.find({}, { modelData: 0 }); // Exclude modelData for listing
     return {
         models: models.map(m => ({
+            _id: m._id,
             name: m.name,
             description: m.description,
-            modelUrl: `${BASE_DOMAIN}${API_PREFIX}/uploads/3dmodels/${m.filename}`, 
-            imageUrl: `${BASE_DOMAIN}${API_PREFIX}${m.imageUrl}`
+            modelUrl: `${BASE_DOMAIN}/api/3d/download/${m._id}`,
+            imageUrl: m.imageUrl // Already a data URL
         }))
     };    
 };
@@ -82,11 +77,16 @@ const getAll3DModels = async () => {
 // Download 3D Model
 const download3DModel = async (req, res) => {
     try {
-        const filePath = path.join(UPLOAD_DIR, '3dmodels', req.params.modelName);
-        await fs.access(filePath);
-        res.download(filePath);
+        const model = await ThreeDModel.findById(req.params.modelName);
+        if (!model || !model.modelData) {
+            return res.status(404).json({ error: 'Model not found' });
+        }
+
+        res.setHeader('Content-Type', 'model/gltf-binary');
+        res.setHeader('Content-Disposition', `attachment; filename="${model.filename}"`);
+        res.send(model.modelData);
     } catch (err) {
-        res.status(err.code === 'ENOENT' ? 404 : 500).json({ error: err.message });
+        res.status(500).json({ error: err.message });
     }
 };
 
