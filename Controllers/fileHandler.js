@@ -83,6 +83,13 @@ const uploadFile = (req, res, next) => {
   if (isProfileUpdate) {
     // For profile updates, handle single logo file
     console.log('[Upload] Handling profile update with possible logo');
+    console.log('[Upload] Request files state:', {
+      hasFiles: !!req.files,
+      fileCount: req.files?.length,
+      hasFile: !!req.file,
+      contentType: req.headers['content-type']
+    });
+    
     upload.single('logo')(req, res, (err) => {
       if (err) {
         // If no logo file is provided, just continue
@@ -93,7 +100,14 @@ const uploadFile = (req, res, next) => {
         console.error("[uploadFile] Logo upload error:", err);
         return res.status(400).json({ error: err.message });
       }
-      console.log('[Upload] Logo file processed successfully');
+      
+      console.log('[Upload] Logo file processed:', {
+        hasFile: !!req.file,
+        filename: req.file?.originalname,
+        fieldname: req.file?.fieldname,
+        mimetype: req.file?.mimetype
+      });
+      
       next();
     });
   } else {
@@ -187,12 +201,24 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     
     // Handle logo file if present
     if (req.file) {
-      console.log('[Media] Processing logo file for profile update');
+      console.log('[Media] Processing logo file for profile update:', {
+        filename: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        fieldname: req.file.fieldname
+      });
       
       // First, get the current user to check if they already have a logo
       const currentUser = await User.findOne({ _id: req.user._id });
+      console.log('[Media] Current user logo state:', {
+        userId: currentUser._id,
+        hasExistingLogo: !!currentUser.logo,
+        existingLogoId: currentUser.logo
+      });
+      
       if (currentUser.logo) {
         // If there's an existing logo, delete it from Media collection
+        console.log('[Media] Deleting existing logo:', currentUser.logo);
         await Media.findByIdAndDelete(currentUser.logo);
       }
 
@@ -298,7 +324,13 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
       userUpdate.$push.videos = { $each: uploadedFiles.videos };
     }
     if (uploadedFiles.model3d) {
+      // For 3D models, we replace rather than push since we only want one
       userUpdate.model3d = uploadedFiles.model3d;
+      // Remove the old 3D model if it exists
+      const currentUser = await User.findById(req.user._id);
+      if (currentUser.model3d) {
+        await Media.findByIdAndDelete(currentUser.model3d);
+      }
     }
   }
 
@@ -421,17 +453,21 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     }
 
     console.log('[Media] Logo verification completed successfully');
-  }  // Build a clean user response with proper URL generation
-  const cleanUser = {
-    _id: user._id,
-    email: user.email,
-    companyName: user.companyName,
-    logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
-    images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
-    videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
-    model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
+  }  // Build response based on what was uploaded
+  const response = {
+    message: 'Files uploaded successfully',
+    uploadedFiles: req.files?.map(f => f.originalname) || [],
+    user: {
+      _id: user._id,
+      email: user.email,
+      companyName: user.companyName,
+      logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+      images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
+      videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
+      model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
+    }
   };
-  return cleanUser;
+  return response;
 };
 
 
