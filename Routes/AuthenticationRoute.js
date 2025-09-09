@@ -145,23 +145,8 @@ router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) =>
     // All updates will be handled by saveFileToDBAndUpdateUser
     const updatedData = await saveFileToDBAndUpdateUser(req);
     
-    // The updated data already contains everything we need, including the populated URLs
-    res.json({
-      message: "Profile updated successfully",
-      user: {
-        _id: updatedData.user._id,
-        email: updatedData.user.email,
-        companyName: updatedData.user.companyName,
-        logo: updatedData.user.logo,
-        address: updatedData.user.address,
-        zipCode: updatedData.user.zipCode,
-        city: updatedData.user.city,
-        country: updatedData.user.country,
-        images: updatedData.user.images,
-        videos: updatedData.user.videos,
-        model3d: updatedData.user.model3d
-      }
-    });
+    // Use the data structure returned by saveFileToDBAndUpdateUser
+    res.json(updatedData);
   } catch (error) {
     console.error('Profile update error:', error);
     res.status(500).json({ error: "Failed to update profile", details: error.message });

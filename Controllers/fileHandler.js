@@ -361,12 +361,26 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
       finalUpdate.$push = userUpdate.$push;
     }
 
+    // Handle model3d update
+    if (userUpdate.model3d) {
+      finalUpdate.model3d = userUpdate.model3d;
+      console.log('[Media] Including model3d in update:', finalUpdate.model3d);
+    }
+
     console.log('[Media] Final update object:', {
       finalUpdate: JSON.stringify(finalUpdate),
-      hasLogo: !!finalUpdate.logo
+      hasLogo: !!finalUpdate.logo,
+      hasModel3d: !!finalUpdate.model3d
     });
 
-    // First, apply the update
+    // First check if user exists
+    const existingUser = await User.findById(req.user._id);
+    if (!existingUser) {
+      console.error(`[Media] User not found with ID: ${req.user._id}`);
+      throw new Error('User not found');
+    }
+
+    // Apply the update
     user = await User.findOneAndUpdate(
       { _id: req.user._id },
       finalUpdate,
@@ -374,28 +388,21 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
         new: true, 
         runValidators: true 
       }
-    );
+    ).populate('logo')
+     .populate('images')
+     .populate('videos')
+     .populate('model3d');
 
-    console.log('[Media] User updated, fetching with populated fields');
+    if (!user) {
+      console.error(`[Media] Update failed for user ID: ${req.user._id}`);
+      throw new Error('Failed to update user');
+    }
 
-    // Then fetch the updated user with populated fields
-    user = await User.findById(user._id)
-      .populate({
-        path: 'logo',
-        model: 'Media'
-      })
-      .populate({
-        path: 'images',
-        model: 'Media'
-      })
-      .populate({
-        path: 'videos',
-        model: 'Media'
-      })
-      .populate({
-        path: 'model3d',
-        model: 'Media'
-      });
+    console.log('[Media] User updated successfully:', {
+      userId: user._id,
+      hasLogo: !!user.logo,
+      hasModel3d: !!user.model3d
+    });
 
     console.log('[Media] User update result:', {
       id: user._id,
@@ -453,21 +460,45 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     }
 
     console.log('[Media] Logo verification completed successfully');
-  }  // Build response based on what was uploaded
-  const response = {
-    message: 'Files uploaded successfully',
-    uploadedFiles: req.files?.map(f => f.originalname) || [],
-    user: {
-      _id: user._id,
-      email: user.email,
-      companyName: user.companyName,
-      logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
-      images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
-      videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
-      model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
+  }  // Build a clean response based on the type of upload
+  if (isProfileUpdate) {
+    // For profile updates, ensure user object exists and has required fields
+    if (!user) {
+      throw new Error('User object is undefined after update');
     }
-  };
-  return response;
+    
+    return {
+      status: 'success',
+      message: 'Profile updated successfully',
+      data: {
+        _id: user._id,
+        email: user.email,
+        companyName: user.companyName,
+        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+        address: user.address || '',
+        zipCode: user.zipCode || '',
+        city: user.city || '',
+        country: user.country || ''
+      }
+    };
+  } else {
+    // For media uploads
+    return {
+      status: 'success',
+      message: 'Files uploaded successfully',
+      data: {
+        _id: user._id,
+        email: user.email,
+        companyName: user.companyName,
+        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+        media: {
+          images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
+          videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
+          model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
+        }
+      }
+    };
+  }
 };
 
 
