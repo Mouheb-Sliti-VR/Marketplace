@@ -14,28 +14,47 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB file size limit
-  fileFilter: (_, file, cb) => {
-    // No need to log every MIME type in production
+  fileFilter: (req, file, cb) => {
+    console.log(`[Upload] Processing file: ${file.originalname}, MIME type: ${file.mimetype}`);
+    
     const allowedTypes = [
       'image/jpeg', 
       'image/png', 
       'video/mp4',
-      'model/gltf-binary', // GLB MIME type
-      'application/octet-stream' // Alternative MIME type for GLB files
+      'model/gltf-binary',
+      'application/octet-stream',
+      'model/obj',
+      'model/gltf+json',
+      'application/x-fbx',
+      'application/sla',
+      'application/stl'
     ];
     
-    // Check file extension for GLB files and set appropriate mimetype
+    // Handle GLB files
     if (file.originalname.toLowerCase().endsWith('.glb')) {
+      console.log(`[Upload] GLB file detected: ${file.originalname}`);
       file.mimetype = 'model/gltf-binary';
+      return cb(null, true);
+    }
+
+    // Handle other 3D model formats
+    const modelExtensions = ['.obj', '.gltf', '.fbx', '.stl'];
+    const isModelFile = modelExtensions.some(ext => 
+      file.originalname.toLowerCase().endsWith(ext)
+    );
+
+    if (isModelFile) {
+      console.log(`[Upload] 3D model file detected: ${file.originalname}`);
       return cb(null, true);
     }
     
     // Check if the file type is allowed
     if (!allowedTypes.includes(file.mimetype)) {
-      return cb(new Error('Unsupported file type'));
+      console.log(`[Upload] Unsupported file type: ${file.mimetype} for file: ${file.originalname}`);
+      return cb(new Error(`Unsupported file type: ${file.mimetype}. Allowed types are: images (jpg/png), videos (mp4), and 3D models (glb/obj/gltf/fbx/stl)`));
     }
     
-    // If the file type is allowed, accept the file
+    console.log(`[Upload] File accepted: ${file.originalname}`);
     cb(null, true);
   }
 });
@@ -43,6 +62,20 @@ const upload = multer({
 // Debugging-enhanced uploadFile middleware for single or multiple files
 const uploadFile = (req, res, next) => {
   console.log(`[Upload] Starting upload for user: ${req.user.email}`);
+  
+  // Debug logging
+  console.log('Upload endpoint hit');
+  console.log('Request body:', req.body);
+  console.log('Headers:', req.headers);
+  
+  // Check content type
+  const contentType = req.headers['content-type'] || '';
+  if (!contentType.includes('multipart/form-data')) {
+    console.error('[Upload] Invalid content type:', contentType);
+    return res.status(400).json({ 
+      error: 'Invalid content type. Must be multipart/form-data' 
+    });
+  }
   
   // Determine if this is a profile update request
   const isProfileUpdate = req.path.includes('/updateProfile');
@@ -66,7 +99,46 @@ const uploadFile = (req, res, next) => {
   } else {
     // For media content uploads, handle multiple files
     console.log('[Upload] Handling multiple media files upload');
-    upload.array('media', 10)(req, res, (err) => {  // Allow up to 10 files
+    const uploadMiddleware = multer({
+      storage: storage,
+      limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB file size limit
+      fileFilter: (req, file, cb) => {
+        console.log(`[Upload] Processing file in array: ${file.originalname}, MIME type: ${file.mimetype}`);
+        
+        // Handle GLB files
+        if (file.originalname.toLowerCase().endsWith('.glb')) {
+          console.log(`[Upload] GLB file detected in array: ${file.originalname}`);
+          file.mimetype = 'model/gltf-binary';
+          return cb(null, true);
+        }
+
+        // Handle other 3D model formats
+        const modelExtensions = ['.obj', '.gltf', '.fbx', '.stl'];
+        if (modelExtensions.some(ext => file.originalname.toLowerCase().endsWith(ext))) {
+          console.log(`[Upload] 3D model file detected in array: ${file.originalname}`);
+          return cb(null, true);
+        }
+
+        // Handle images and videos
+        const allowedTypes = [
+          'image/jpeg', 
+          'image/png', 
+          'video/mp4',
+          'model/gltf-binary',
+          'application/octet-stream'
+        ];
+
+        if (!allowedTypes.includes(file.mimetype)) {
+          console.log(`[Upload] Invalid file type in array: ${file.mimetype}, file: ${file.originalname}`);
+          return cb(new Error(`File type not allowed for ${file.originalname}. Allowed types: jpg, png, mp4, glb, obj, gltf, fbx, stl`));
+        }
+
+        console.log(`[Upload] File accepted in array: ${file.originalname}`);
+        cb(null, true);
+      }
+    }).array('media', 10);
+
+    uploadMiddleware(req, res, (err) => {
       if (err) {
         console.error("[uploadFile] Multer error:", err);
         // Handle Multer-specific errors
@@ -81,15 +153,11 @@ const uploadFile = (req, res, next) => {
           }
         }
         
-        // Handle unsupported file type error
-        if (err.message === 'Unsupported file type') {
-          console.error(`[Upload] Unsupported file type from user: ${req.user.email}`);
-          return res.status(400).json({ error: 'Unsupported file type. Only images and videos are allowed.' });
-        }
-        
-        // Catch all other errors
-        console.error(`[Upload] Error: ${err.message} for user: ${req.user.email}`);
-        return res.status(500).json({ error: 'An error occurred during file upload.', details: err.message });
+        // Handle unsupported file type error with more detail
+        console.error(`[Upload] File upload error for user: ${req.user.email}:`, err.message);
+        return res.status(400).json({ 
+          error: err.message || 'Unsupported file type. Allowed types: jpg, png, mp4, glb, obj, gltf, fbx, stl'
+        });
       }
 
       next();
@@ -132,7 +200,7 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
         secureId: generateSecureFileId(),
         mimeType: req.file.mimetype,
         size: req.file.size,
-        type: req.file.mimetype.split('/')[0],
+        type: 'image', // Force type as image for logo
         filename: req.file.originalname,
         data: req.file.buffer,
         uploadedBy: req.user._id
@@ -140,12 +208,24 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
       try {
         await media.save();
+        console.log('[Media] New logo media saved with ID:', media._id);
+        
+        // Set the URL
         media.url = getMediaUrl(media.secureId);
         await media.save();
+        
+        // Update user's logo field
         userUpdate.logo = media._id;
-        console.log('[Media] Logo saved successfully');
+        console.log('[Media] Logo reference saved successfully:', media._id);
+        
+        // Double-check media was saved
+        const savedMedia = await Media.findById(media._id);
+        if (!savedMedia) {
+          throw new Error('Media save verification failed');
+        }
+        console.log('[Media] Logo save verified:', savedMedia._id);
       } catch (err) {
-        console.error(`[Media] Logo save failed for user: ${req.user.email}, error: ${err.message}`);
+        console.error(`[Media] Logo save failed for user: ${req.user.email}, error:`, err);
         throw err;
       }
     }
@@ -160,11 +240,30 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     };
 
     for (const file of req.files) {
+      // Determine the type of media
+      let mediaType;
+      if (file.mimetype.startsWith('image/')) {
+        mediaType = 'image';
+      } else if (file.mimetype.startsWith('video/')) {
+        mediaType = 'video';
+      } else if (
+        file.mimetype === 'model/gltf-binary' ||
+        file.originalname.toLowerCase().endsWith('.glb') ||
+        file.originalname.toLowerCase().endsWith('.obj') ||
+        file.originalname.toLowerCase().endsWith('.gltf') ||
+        file.originalname.toLowerCase().endsWith('.fbx') ||
+        file.originalname.toLowerCase().endsWith('.stl')
+      ) {
+        mediaType = 'model';
+      }
+
+      console.log(`[Media] Processing file: ${file.originalname} as type: ${mediaType}`);
+
       const media = new Media({
         secureId: generateSecureFileId(),
         mimeType: file.mimetype,
         size: file.size,
-        type: file.mimetype.split('/')[0],
+        type: mediaType,
         filename: file.originalname,
         data: file.buffer,
         uploadedBy: req.user._id
@@ -176,11 +275,11 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
         await media.save();
 
         // Categorize media based on type
-        if (media.type === 'image') {
+        if (mediaType === 'image') {
           uploadedFiles.images.push(media._id);
-        } else if (media.type === 'video') {
+        } else if (mediaType === 'video') {
           uploadedFiles.videos.push(media._id);
-        } else if (file.mimetype === 'model/gltf-binary' || file.originalname.toLowerCase().endsWith('.glb')) {
+        } else if (mediaType === 'model') {
           uploadedFiles.model3d = media._id;
         }
       } catch (err) {
@@ -203,18 +302,47 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     }
   }
 
-  // Options to return the updated document
-  const options = { new: true };
+  console.log('[Media] Preparing user update:', {
+    userId: req.user._id,
+    updateData: userUpdate
+  });
+
   let user;
   try {
-    // Update using _id instead of email for more reliable updates
+    // First, apply the update
     user = await User.findOneAndUpdate(
       { _id: req.user._id },
       userUpdate,
-      options
+      { new: true, runValidators: true }
     );
+
+    // Then fetch the updated user with populated fields
+    user = await User.findById(user._id)
+      .populate({
+        path: 'logo',
+        model: 'Media'
+      })
+      .populate({
+        path: 'images',
+        model: 'Media'
+      })
+      .populate({
+        path: 'videos',
+        model: 'Media'
+      })
+      .populate({
+        path: 'model3d',
+        model: 'Media'
+      });
+
+    console.log('[Media] User update result:', {
+      id: user._id,
+      logo: user.logo?._id,
+      updateApplied: userUpdate
+    });
+
   } catch (err) {
-    console.error(`[Media] User update failed for: ${req.user.email}, error: ${err.message}`);
+    console.error(`[Media] User update failed for: ${req.user.email}, error:`, err);
     throw err;
   }
 
@@ -223,15 +351,24 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     throw new Error('User not found');
   }
 
-  // Build a clean user response
+  // Verify the logo was properly linked
+  if (userUpdate.logo && (!user.logo || user.logo.toString() !== userUpdate.logo.toString())) {
+    console.error('[Media] Logo update verification failed:', {
+      expected: userUpdate.logo,
+      actual: user.logo
+    });
+    throw new Error('Logo update verification failed');
+  }
+
+  // Build a clean user response with proper URL generation
   const cleanUser = {
     _id: user._id,
     email: user.email,
     companyName: user.companyName,
-    images: user.images,
-    videos: user.videos,
-    logo: user.logo,
-    model3d: user.model3d
+    logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+    images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
+    videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
+    model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
   };
   return cleanUser;
 };

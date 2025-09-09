@@ -174,11 +174,33 @@ router.get('/getUserDetails', authenticateToken, async (req, res) => {
     }
 
     // Retrieve the user details based on the authenticated email (or user ID)
+    console.log('Fetching user details for:', req.user.email);
     const user = await User.findOne({ email: req.user.email })
-      .populate('logo')
-      .populate('images')
-      .populate('videos')
-      .populate('model3d');
+      .populate({
+        path: 'logo',
+        model: 'Media'
+      })
+      .populate({
+        path: 'images',
+        model: 'Media'
+      })
+      .populate({
+        path: 'videos',
+        model: 'Media'
+      })
+      .populate({
+        path: 'model3d',
+        model: 'Media'
+      });
+    
+    console.log('User found:', {
+      id: user._id,
+      hasLogo: !!user.logo,
+      logoId: user.logo?._id,
+      imagesCount: user.images?.length,
+      videosCount: user.videos?.length,
+      has3dModel: !!user.model3d
+    });
 
     if (!user) {
       console.log("User not found for email: " + req.user.email);
