@@ -230,54 +230,31 @@ router.get("/usersWithPublishedFiles", async (req, res) => {
     
     console.log(`Database status - Users: ${userCount}, Media files: ${mediaCount}`);
 
-    // Find all users who have media files with improved aggregation
-    const usersWithMedia = await User.aggregate([
-      // First lookup for images, videos, and 3D models
-      {
-        $lookup: {
-          from: 'media',
-          let: { userEmail: '$email' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$userEmail', '$$userEmail'] }
-              }
-            }
-          ],
-          as: 'mediaFiles'
-        }
-      },
-      // Only include users who have media files
-      {
-        $match: {
-          $or: [
-            { 'mediaFiles': { $ne: [] } },
-            { 'images': { $exists: true, $ne: [] } },
-            { 'videos': { $exists: true, $ne: [] } },
-            { 'model3d': { $exists: true } }
-          ]
-        }
-      },
-      // Project the fields we want to return
-      {
-        $project: {
-          _id: 1,
-          email: 1,
-          companyName: 1,
-          address: 1,
-          city: 1,
-          country: 1,
-          mediaCount: { $size: '$mediaFiles' },
-          hasImages: { $gt: [{ $size: { $ifNull: ['$images', []] } }, 0] },
-          hasVideos: { $gt: [{ $size: { $ifNull: ['$videos', []] } }, 0] },
-          has3DModel: { $ne: ['$model3d', null] }
-        }
-      },
-      // Sort by company name
-      {
-        $sort: { companyName: 1 }
+    // Find users with media and populate their media references
+    const users = await User.find({
+      $or: [
+        { 'images': { $exists: true, $ne: [] } },
+        { 'videos': { $exists: true, $ne: [] } },
+        { 'model3d': { $exists: true } },
+        { 'logo': { $exists: true } }
+      ]
+    }).populate('logo images videos model3d');
+
+    // Transform the users data to include media URLs
+    const usersWithMedia = users.map(user => ({
+      user: {
+        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
+        images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
+        videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
+        model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null,
+        address: user.address || '',
+        zipCode: user.zipCode || '',
+        city: user.city || '',
+        country: user.country || '',
+        email: user.email,
+        companyName: user.companyName
       }
-    ]);
+    }));
 
     console.log(`Found ${usersWithMedia.length} users with published files`);
     
