@@ -10,15 +10,18 @@ const ThreeDRoute = require("./Routes/3dMediaRoute");
 const catalogRoute = require("./Routes/catalogRoute");
 
 
+// Define base API path first
+const API_BASE_PATH = process.env.NODE_ENV === 'production' ? '/api' : '';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.DB_URI;
-app.use(express.json()); 
 
 // Middleware
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
+
 // Serve static files from uploads directory
 app.use(`${API_BASE_PATH}/uploads`, express.static(path.join(__dirname, 'uploads')));
 
@@ -32,9 +35,6 @@ app.use(`${API_BASE_PATH}/uploads`, (err, req, res, next) => {
 mongoose.connect(MONGODB_URI)
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
-
-// Define base API path
-const API_BASE_PATH = process.env.NODE_ENV === 'production' ? '/api' : '';
 
 // Routes
 app.use(`${API_BASE_PATH}/auth`, registerRoute);

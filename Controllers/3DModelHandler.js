@@ -1,5 +1,5 @@
 const multer = require('multer');
-const path = require('path');
+const path = require('path');// Get All 3D Models
 const fs = require('fs').promises;
 const ThreeDModel = require("../Models/ThreeDModel");
 const { v4: uuidv4 } = require('uuid');
