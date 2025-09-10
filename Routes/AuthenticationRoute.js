@@ -222,37 +222,35 @@ router.get('/getUserDetails', authenticateToken, async (req, res) => {
 
 router.get("/usersWithPublishedFiles", async (req, res) => {
   try {
-    // Find users who have at least one media field populated
-    const usersWithFiles = await User.find({
-      $or: [
-        { logo: { $exists: true, $ne: null } },
-        { images: { $exists: true, $not: { $size: 0 } } },
-        { videos: { $exists: true, $not: { $size: 0 } } },
-        { model3d: { $exists: true, $ne: null } }
-      ],
-    });
+    // Find all users who have media files
+    const usersWithMedia = await User.aggregate([
+      {
+        $lookup: {
+          from: 'media',
+          localField: 'email',
+          foreignField: 'userEmail',
+          as: 'mediaFiles'
+        }
+      },
+      {
+        $match: {
+          'mediaFiles.0': { $exists: true } // Only users with at least one media file
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          email: 1,
+          companyName: 1,
+          mediaCount: { $size: '$mediaFiles' }
+        }
+      }
+    ]);
 
-    const totalPartners = usersWithFiles.length;
-
-    const usersWithUrls = await Promise.all(usersWithFiles.map(async (user) => {
-      await user.populate('logo');
-      await user.populate('images');
-      await user.populate('videos');
-      await user.populate('model3d');
-      return {
-        email: user.email,
-        companyName: user.companyName,
-        logo: user.logo ? getMediaUrl(user.logo.secureId) : null,
-        images: user.images ? user.images.map(img => getMediaUrl(img.secureId)) : [],
-        videos: user.videos ? user.videos.map(vid => getMediaUrl(vid.secureId)) : [],
-        model3d: user.model3d ? getMediaUrl(user.model3d.secureId) : null
-      };
-    }));
-
-    res.json({ users: usersWithUrls, totalPartners });
+    res.json(usersWithMedia);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error" });
+    console.error('Error fetching users with files:', error);
+    res.status(500).json({ error: 'Failed to fetch users with files' });
   }
 });
 

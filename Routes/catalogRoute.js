@@ -79,9 +79,16 @@ router.post('/validate', authenticateToken, async (req, res) => {
                 }
                 break;
             case 'MIXED':
-                if (!selectedImagesCount && !selectedVideosCount) {
+                if (!selectedImagesCount && !selectedVideosCount && !selectedModelsCount) {
                     return res.status(400).json({ 
-                        error: 'For mixed offers, at least one of selectedImagesCount or selectedVideosCount is required' 
+                        error: 'For mixed offers, at least one of selectedImagesCount, selectedVideosCount, or selectedModelsCount is required' 
+                    });
+                }
+                // Validate that the total count makes sense
+                const total = (selectedImagesCount || 0) + (selectedVideosCount || 0) + (selectedModelsCount || 0);
+                if (total === 0) {
+                    return res.status(400).json({
+                        error: 'For mixed offers, the total count of selected items must be greater than 0'
                     });
                 }
                 break;
