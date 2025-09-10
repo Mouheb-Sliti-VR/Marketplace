@@ -222,35 +222,84 @@ router.get('/getUserDetails', authenticateToken, async (req, res) => {
 
 router.get("/usersWithPublishedFiles", async (req, res) => {
   try {
-    // Find all users who have media files
+    console.log('Fetching users with published files...');
+    
+    // First, let's check if we have any users and media
+    const userCount = await User.countDocuments();
+    const mediaCount = await Media.countDocuments();
+    
+    console.log(`Database status - Users: ${userCount}, Media files: ${mediaCount}`);
+
+    // Find all users who have media files with improved aggregation
     const usersWithMedia = await User.aggregate([
+      // First lookup for images, videos, and 3D models
       {
         $lookup: {
           from: 'media',
-          localField: 'email',
-          foreignField: 'userEmail',
+          let: { userEmail: '$email' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$userEmail', '$$userEmail'] }
+              }
+            }
+          ],
           as: 'mediaFiles'
         }
       },
+      // Only include users who have media files
       {
         $match: {
-          'mediaFiles.0': { $exists: true } // Only users with at least one media file
+          $or: [
+            { 'mediaFiles': { $ne: [] } },
+            { 'images': { $exists: true, $ne: [] } },
+            { 'videos': { $exists: true, $ne: [] } },
+            { 'model3d': { $exists: true } }
+          ]
         }
       },
+      // Project the fields we want to return
       {
         $project: {
           _id: 1,
           email: 1,
           companyName: 1,
-          mediaCount: { $size: '$mediaFiles' }
+          address: 1,
+          city: 1,
+          country: 1,
+          mediaCount: { $size: '$mediaFiles' },
+          hasImages: { $gt: [{ $size: { $ifNull: ['$images', []] } }, 0] },
+          hasVideos: { $gt: [{ $size: { $ifNull: ['$videos', []] } }, 0] },
+          has3DModel: { $ne: ['$model3d', null] }
         }
+      },
+      // Sort by company name
+      {
+        $sort: { companyName: 1 }
       }
     ]);
 
-    res.json(usersWithMedia);
+    console.log(`Found ${usersWithMedia.length} users with published files`);
+    
+    if (usersWithMedia.length === 0) {
+      // Log the first few users in the database for debugging
+      const sampleUsers = await User.find().limit(3).select('email companyName images videos model3d');
+      console.log('Sample users in database:', JSON.stringify(sampleUsers, null, 2));
+    }
+
+    res.json({
+      totalUsers: userCount,
+      totalMedia: mediaCount,
+      usersWithFiles: usersWithMedia
+    });
   } catch (error) {
     console.error('Error fetching users with files:', error);
-    res.status(500).json({ error: 'Failed to fetch users with files' });
+    console.error('Error details:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch users with files',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
