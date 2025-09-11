@@ -6,13 +6,19 @@ const mediaSchema = new mongoose.Schema({
     type: String, 
     required: true, 
     unique: true, 
-    default: () => crypto.randomBytes(16).toString('hex') // Generates a secure 16-byte hexadecimal ID
+    default: () => crypto.randomBytes(16).toString('hex')
   },
   type: { 
     type: String, 
     enum: ['image', 'video', 'model'], 
     required: true 
-  },  // Type of the media file
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
   filename: { 
     type: String, 
     required: true 
@@ -29,10 +35,6 @@ const mediaSchema = new mongoose.Schema({
   url: { 
     type: String 
   },
-  uploadedBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User' 
-  },  // Reference to the user
   createdAt: { 
     type: Date, 
     default: Date.now 

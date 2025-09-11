@@ -48,7 +48,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ 
     storage, 
     fileFilter,
-    limits: { fileSize: 15 * 1024 * 1024 } // 15MB limit
+    limits: { fileSize: 16 * 1024 * 1024 } // 200MB limit
 }).fields([
     { name: 'file', maxCount: 1 },      // Changed from 'model' to 'file'
     { name: 'imageFile', maxCount: 1 }   // Changed from 'image' to 'imageFile'
@@ -57,32 +57,47 @@ const upload = multer({
 // Save 3D Model Metadata
 const save3DModel = async (req) => {
     const { name, description } = req.body;
-    const modelFile = req.files?.file?.[0];         // Changed from model to file
-    const imageFile = req.files?.imageFile?.[0];     // Changed from image to imageFile
+    const modelFile = req.files?.file?.[0];
+    const imageFile = req.files?.imageFile?.[0];
 
     if (!name || !description || !modelFile || !imageFile) {
         throw new Error('All fields are required: name, description, file (3D model), and imageFile');
     }
 
-    console.log('Files received:', {
-        modelFile: modelFile?.originalname,
-        imageFile: imageFile?.originalname,
-        body: req.body
-    });
+    // Determine correct MIME type based on file extension
+    const ext = path.extname(modelFile.originalname).toLowerCase();
+    let mimeType = modelFile.mimetype;
+    
+    switch (ext) {
+        case '.glb':
+            mimeType = 'model/gltf-binary';
+            break;
+        case '.gltf':
+            mimeType = 'model/gltf+json';
+            break;
+        case '.obj':
+            mimeType = 'model/obj';
+            break;
+        case '.stl':
+            mimeType = 'application/sla';
+            break;
+        case '.fbx':
+            mimeType = 'application/x-fbx';
+            break;
+    }
 
     // Validate File Types
-    const isModelValid = ['model/gltf-binary', 'model/gltf+json', 'model/obj', 'application/stl'].includes(modelFile.mimetype);
+    const isModelValid = ['model/gltf-binary', 'model/gltf+json', 'model/obj', 'application/stl', 'application/sla', 'application/x-fbx'].includes(mimeType);
     const isImageValid = ['image/jpeg', 'image/png', 'image/webp'].includes(imageFile.mimetype);
 
     if (!isModelValid || !isImageValid) {
-        throw new Error('Invalid file format: Ensure the model is a .glb/.obj and image is .jpg/.png');
+        throw new Error('Invalid file format: Ensure the model is a supported format (.glb/.gltf/.obj/.stl/.fbx) and image is .jpg/.png/.webp');
     }
 
-    console.log('Processing model file:', {
-        name: modelFile.originalname,
-        size: modelFile.size,
-        mimetype: modelFile.mimetype,
-        hasBuffer: !!modelFile.buffer
+    console.log('Processing files:', {
+        modelName: modelFile.originalname,
+        imageName: imageFile.originalname,
+        modelType: mimeType
     });
 
     // Generate unique filenames with timestamp and uuid
@@ -101,18 +116,12 @@ const save3DModel = async (req) => {
         name,
         description,
         filename: uniqueModelFilename,
-        modelData: modelFile.buffer, // Store the raw buffer
-        imageUrl: `/uploads/images/${uniqueImageFilename}` // Store the relative path
+        modelData: Buffer.from(modelFile.buffer), // Ensure proper Buffer storage
+        mimeType: mimeType, // Save the determined MIME type
+        imageUrl: `/uploads/images/${uniqueImageFilename}`
     });
 
-    console.log('Model being saved:', {
-        name: newModel.name,
-        filename: newModel.filename,
-        hasModelData: !!newModel.modelData,
-        modelDataSize: newModel.modelData?.length,
-        imagePath: newModel.imageUrl
-    });
-
+    console.log(`Saving 3D model: ${newModel.name} (${newModel.filename})`);
     return await newModel.save();
 };
 
@@ -136,21 +145,11 @@ const getAll3DModels = async () => {
 const download3DModel = async (req, res) => {
     try {
         const filename = req.params.modelName;
-        console.log('Download request for model filename:', filename);
-        
         const model = await ThreeDModel.findOne({ filename: filename });
+        
         if (!model) {
-            console.log('Model not found in database');
             return res.status(404).json({ error: 'Model not found' });
         }
-
-        console.log('Found model:', {
-            id: model._id,
-            name: model.name,
-            filename: model.filename,
-            hasModelData: !!model.modelData,
-            modelDataSize: model.modelData?.length
-        });
 
         if (!model.modelData || model.modelData.length === 0) {
             return res.status(404).json({ 
@@ -159,22 +158,41 @@ const download3DModel = async (req, res) => {
             });
         }
 
-        // Set correct content type based on file extension
-        const contentType = model.filename.toLowerCase().endsWith('.glb') 
-            ? 'model/gltf-binary'
-            : 'application/octet-stream';
+        // Determine correct MIME type based on file extension
+        const ext = path.extname(model.filename).toLowerCase();
+        let contentType;
+        
+        switch (ext) {
+            case '.glb':
+                contentType = 'model/gltf-binary';
+                break;
+            case '.gltf':
+                contentType = 'model/gltf+json';
+                break;
+            case '.obj':
+                contentType = 'model/obj';
+                break;
+            case '.stl':
+                contentType = 'application/sla';
+                break;
+            case '.fbx':
+                contentType = 'application/x-fbx';
+                break;
+            default:
+                contentType = 'application/octet-stream';
+        }
 
+        // Ensure proper binary data handling
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${model.filename}"`);
         res.setHeader('Content-Length', model.modelData.length);
+        res.setHeader('Content-Transfer-Encoding', 'binary');
+        res.setHeader('Accept-Ranges', 'bytes');
         
-        console.log('Sending model data:', {
-            filename: model.filename,
-            contentType: contentType,
-            size: model.modelData.length
-        });
-
-        return res.send(model.modelData);
+        console.log(`Downloading ${model.filename} (${contentType})`);
+        
+        // Send as raw binary buffer
+        return res.end(Buffer.from(model.modelData), 'binary');
     } catch (err) {
         console.error('Download error:', err);
         res.status(500).json({ 

@@ -142,6 +142,19 @@ router.post("/login", async (req, res) => {
 
 router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) => {
   try {
+    // Create new media for logo if present
+    if (req.files?.logo?.[0]) {
+      const logoFile = req.files.logo[0];
+      const logoMedia = new Media({
+        type: 'image',
+        filename: logoFile.originalname,
+        size: logoFile.size,
+        mimeType: logoFile.mimetype,
+        data: logoFile.buffer,
+        user: req.user._id // Set the user ID from the authenticated request
+      });
+      await logoMedia.save();
+    }
     // All updates will be handled by saveFileToDBAndUpdateUser
     const updatedData = await saveFileToDBAndUpdateUser(req);
     

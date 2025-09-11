@@ -2,6 +2,7 @@ const multer = require('multer');
 const Media = require('../Models/mediaModel');
 const User = require('../Models/userModel');
 const crypto = require('crypto');
+const path = require('path');
 const { getMediaUrl } = require('../utils/urlConfig');
 
 // Generate unique secure IDs for files
@@ -13,7 +14,7 @@ const storage = multer.memoryStorage();
 // Define the upload middleware with file size limit and file type filtering
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB file size limit
+  limits: { fileSize: 16 * 1024 * 1024 }, // 200 MB file size limit
   fileFilter: (req, file, cb) => {
     console.log(`[Upload] Processing file: ${file.originalname}, MIME type: ${file.mimetype}`);
     
@@ -115,7 +116,7 @@ const uploadFile = (req, res, next) => {
     console.log('[Upload] Handling multiple media files upload');
     const uploadMiddleware = multer({
       storage: storage,
-      limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB file size limit
+      limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB file size limit
       fileFilter: (req, file, cb) => {
         console.log(`[Upload] Processing file in array: ${file.originalname}, MIME type: ${file.mimetype}`);
         
@@ -185,6 +186,45 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
   const isProfileUpdate = req.path.includes('/updateProfile');
   let userUpdate = {};
+
+  // Helper function to create media document
+  const createMediaDoc = async (file, type) => {
+    const newMedia = new Media({
+      type: type,
+      filename: file.originalname,
+      size: file.size,
+      mimeType: file.mimetype,
+      data: file.buffer,
+      user: req.user._id // Set the user ID from the authenticated request
+    });
+    return await newMedia.save();
+  };
+
+  // Function to handle media limits
+  const handleMediaLimits = async (userId, fileType) => {
+    let oldestMedia;
+    switch(fileType) {
+      case 'image':
+        const imageCount = await Media.countDocuments({ user: userId, type: 'image' });
+        if (imageCount >= 4) {
+          oldestMedia = await Media.findOne({ user: userId, type: 'image' }).sort({ createdAt: 1 });
+        }
+        break;
+      case 'video':
+        const videoCount = await Media.countDocuments({ user: userId, type: 'video' });
+        if (videoCount >= 2) {
+          oldestMedia = await Media.findOne({ user: userId, type: 'video' }).sort({ createdAt: 1 });
+        }
+        break;
+      case 'model':
+        oldestMedia = await Media.findOne({ user: userId, type: 'model' });
+        break;
+    }
+    if (oldestMedia) {
+      await Media.deleteOne({ _id: oldestMedia._id });
+      console.log(`[Media] Deleted oldest ${fileType} for user ${req.user.email}`);
+    }
+  };
   
   // Handle profile update with optional logo
   if (isProfileUpdate) {
@@ -229,7 +269,7 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
         type: 'image', // Force type as image for logo
         filename: req.file.originalname,
         data: req.file.buffer,
-        uploadedBy: req.user._id
+        user: req.user._id // Set the user ID from the authenticated request
       });
 
       try {
@@ -285,14 +325,41 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
       console.log(`[Media] Processing file: ${file.originalname} as type: ${mediaType}`);
 
+      let mimeType = file.mimetype;
+      // For 3D models, ensure we have the correct MIME type
+      if (mediaType === 'model') {
+        if (file.originalname.toLowerCase().endsWith('.glb')) {
+          mimeType = 'model/gltf-binary';
+        } else {
+          const ext = path.extname(file.originalname).toLowerCase();
+          switch (ext) {
+            case '.gltf':
+              mimeType = 'model/gltf+json';
+              break;
+            case '.obj':
+              mimeType = 'model/obj';
+              break;
+            case '.stl':
+              mimeType = 'application/sla';
+              break;
+            case '.fbx':
+              mimeType = 'application/x-fbx';
+              break;
+            default:
+              // If we can't determine the type, use the original mimetype
+              console.log(`[Media] Using original mimetype for unknown extension: ${ext}`);
+          }
+        }
+      }
+
       const media = new Media({
         secureId: generateSecureFileId(),
-        mimeType: file.mimetype,
+        mimeType: mimeType,
         size: file.size,
         type: mediaType,
         filename: file.originalname,
         data: file.buffer,
-        uploadedBy: req.user._id
+        user: req.user._id
       });
 
       try {

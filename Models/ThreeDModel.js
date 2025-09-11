@@ -6,6 +6,12 @@ const threeDModelSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
     description: {
         type: String,
         trim: true,
@@ -15,11 +21,17 @@ const threeDModelSchema = new mongoose.Schema({
         required: true,
     },
     modelData: {
-        type: Buffer, 
+        type: Buffer,
+        required: true
     },
-
-    filename: { type: String, required: true }, 
-
+    filename: { 
+        type: String, 
+        required: true 
+    },
+    mimeType: {
+        type: String,
+        required: true
+    }
 }, { timestamps: true }); 
 
 const ThreeDModel = mongoose.model('ThreeDModel', threeDModelSchema);
