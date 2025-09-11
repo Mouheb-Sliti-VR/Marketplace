@@ -184,7 +184,7 @@ const download3DModel = async (req, res) => {
 
         // Ensure proper binary data handling
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', `attachment; filename="${model.filename}"`);
+        //res.setHeader('Content-Disposition', `attachment; filename="${model.filename}"`);
         res.setHeader('Content-Length', model.modelData.length);
         res.setHeader('Content-Transfer-Encoding', 'binary');
         res.setHeader('Accept-Ranges', 'bytes');
