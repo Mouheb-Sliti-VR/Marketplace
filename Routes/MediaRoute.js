@@ -17,14 +17,21 @@ router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
         // Check media type and handle limits
         for (const file of req.files) {
             let mediaType;
-            if (file.mimetype.startsWith('image/')) {
+            // Force GLB mimetype for 3D models
+            if (file.mimetype.startsWith('model/') || 
+                file.mimetype.includes('gltf') || 
+                file.originalname.match(/\.(glb|gltf|obj|fbx|stl)$/i)) {
+                mediaType = 'model';
+                file.mimetype = 'model/gltf-binary';
+                
+                // Ensure filename ends with .glb
+                if (!file.originalname.endsWith('.glb')) {
+                    file.originalname = file.originalname.replace(/\.[^/.]+$/, '') + '.glb';
+                }
+            } else if (file.mimetype.startsWith('image/')) {
                 mediaType = 'image';
             } else if (file.mimetype.startsWith('video/')) {
                 mediaType = 'video';
-            } else if (file.mimetype.startsWith('model/') || 
-                      file.mimetype.includes('gltf') || 
-                      file.originalname.endsWith('.glb')) {
-                mediaType = 'model';
             }
 
             // Check and handle media limits
@@ -90,30 +97,21 @@ router.get('/:id', async (req, res) => {
             return res.status(404).send('Media not found');
         }
 
-        // Set correct MIME type and handle binary files
+        // Handle 3D models (always as GLB)
         if (media.type === 'model') {
-            // Force binary transfer for 3D models
-            res.set('Content-Type', 'application/octet-stream');
-            res.set('Content-Transfer-Encoding', 'binary');
-            res.set('Accept-Ranges', 'bytes');
-
-            // Ensure proper extension
-            let filename = media.filename;
-            const ext = media.mimeType === 'model/gltf-binary' ? '.glb' :
-                       media.mimeType === 'model/gltf+json' ? '.gltf' :
-                       media.mimeType === 'model/obj' ? '.obj' :
-                       media.mimeType === 'application/sla' ? '.stl' :
-                       media.mimeType === 'application/x-fbx' ? '.fbx' : '';
+            // Set specific GLB MIME type
+            res.set('Content-Type', 'model/gltf-binary');
             
-            if (!filename.endsWith(ext)) {
-                filename += ext;
+            // Ensure filename ends with .glb
+            let filename = media.filename;
+            if (!filename.endsWith('.glb')) {
+                filename = filename.replace(/\.[^/.]+$/, '') + '.glb';
             }
 
-            res.set('Content-Disposition', `attachment; filename="${filename}"`);
             res.set('Content-Length', media.data.length);
 
-            // Send as raw binary buffer
-            return res.end(Buffer.from(media.data.buffer), 'binary');
+            // Send the binary data directly without any transformation
+            return res.send(media.data);
         } else {
             // For non-model files (images, videos)
             res.set('Content-Type', media.mimeType);
