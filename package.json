@@ -1,5 +1,5 @@
 {
-  "name": "marketplace-for-partners",
+  "name": "place-for-partners",
   "version": "2.0.0",
   "description": "Marketplace for partners Backend application",
   "main": "app.js",
@@ -20,6 +20,7 @@
     "express-validator": "^7.2.0",
     "gridfs-stream": "^1.1.1",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^5.0.0",
     "mongoose": "^8.1.2",
     "multer": "^1.4.2",
     "multer-gridfs-storage": "^5.0.2",

@@ -31,7 +31,10 @@ const mediaSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },  // MIME type, e.g., "image/png"
-  data: Buffer,  
+  fileId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
   url: { 
     type: String 
   },

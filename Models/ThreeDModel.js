@@ -20,8 +20,8 @@ const threeDModelSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    modelData: {
-        type: Buffer,
+    fileId: {
+        type: mongoose.Schema.Types.ObjectId,
         required: true
     },
     filename: { 
