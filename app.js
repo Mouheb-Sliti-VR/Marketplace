@@ -3,11 +3,32 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+const compression = require('compression');
+const { sizeLimiter } = require('./Middleware/limitMiddleware');
 
 const registerRoute = require("./Routes/AuthenticationRoute");
 const mediaRoute = require("./Routes/MediaRoute");
 const ThreeDRoute = require("./Routes/3dMediaRoute");
 const catalogRoute = require("./Routes/catalogRoute");
+
+// Memory monitoring
+const used = process.memoryUsage();
+const formatMemoryUsage = (data) => `${Math.round(data / 1024 / 1024 * 100) / 100} MB`;
+
+setInterval(() => {
+    console.log('Memory usage:');
+    for (let key in used) {
+        console.log(`${key}: ${formatMemoryUsage(used[key])}`);
+    }
+    
+    // Force garbage collection if memory usage is high
+    if (used.heapUsed > 400 * 1024 * 1024) { // 400MB
+        if (global.gc) {
+            global.gc();
+            console.log('Garbage collection triggered');
+        }
+    }
+}, 300000); // Check every 5 minutes
 
 
 // Define base API path first
@@ -19,8 +40,18 @@ const MONGODB_URI = process.env.DB_URI;
 
 // Middleware
 app.use(cors({ origin: '*', credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); 
+app.use(compression()); // Compress all responses
+app.use(express.json({ limit: '10mb' })); // Limit JSON payload size
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(sizeLimiter('10mb')); // Apply global size limit
+
+// Cache control for static files
+app.use((req, res, next) => {
+    if (req.url.startsWith(`${API_BASE_PATH}/uploads`)) {
+        res.set('Cache-Control', 'public, max-age=31536000'); // 1 year
+    }
+    next();
+});
 
 // Serve static files from uploads directory
 app.use(`${API_BASE_PATH}/uploads`, express.static(path.join(__dirname, 'uploads')));
