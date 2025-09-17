@@ -41,8 +41,8 @@ const MONGODB_URI = process.env.DB_URI;
 // Middleware
 app.use(cors({ origin: '*', credentials: true }));
 app.use(compression()); // Compress all responses
-app.use(express.json({ limit: '10mb' })); // Limit JSON payload size
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '25mb' })); // Limit JSON payload size
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(sizeLimiter('10mb')); // Apply global size limit
 
 // Cache control for static files
@@ -78,3 +78,4 @@ app.get("/health-check", (req, res) => res.status(200).json({ status: "up", time
 
 // Start Server
 app.listen(PORT, () => console.log(`🚀 Marketplace running on http://localhost:${PORT}`));
+
