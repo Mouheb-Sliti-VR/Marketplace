@@ -14,6 +14,11 @@ router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
     console.log('Upload endpoint hit');
     
     try {
+        // Check if files exist
+        if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+            throw new Error('No files were uploaded');
+        }
+
         // Check media type and handle limits
         for (const file of req.files) {
             let mediaType;
@@ -63,7 +68,7 @@ router.post('/uploadMedia', authenticateToken, uploadFile, async (req, res) => {
         // Respond with the updated user data
         res.json({
             message: 'Files uploaded successfully',
-            uploadedFiles: req.files.map(file => file.originalname),
+            uploadedFiles: req.files?.map(file => file.originalname) || [],
             user: updatedUser
         });
     } catch (error) {
@@ -97,28 +102,29 @@ router.get('/:id', async (req, res) => {
             return res.status(404).send('Media not found');
         }
 
-        // Handle 3D models (always as GLB)
-        if (media.type === 'model') {
-            // Set specific GLB MIME type
-            res.set('Content-Type', 'model/gltf-binary');
-            
-            // Ensure filename ends with .glb
-            let filename = media.filename;
-            if (!filename.endsWith('.glb')) {
-                filename = filename.replace(/\.[^/.]+$/, '') + '.glb';
+        // Set appropriate headers
+        res.set('Content-Type', media.type === 'model' ? 'model/gltf-binary' : media.mimeType);
+        res.set('Content-Disposition', `attachment; filename="${media.filename}"`);
+
+        // Stream from GridFS if the file is stored there
+        if (media.gridFSId) {
+            try {
+                const stream = await getMediaStream(media.gridFSId);
+                return stream.pipe(res);
+            } catch (err) {
+                console.error('GridFS streaming error:', err);
+                return res.status(500).send('Error streaming file');
             }
-
-            res.set('Content-Length', media.data.length);
-
-            // Send the binary data directly without any transformation
-            return res.send(media.data);
-        } else {
-            // For non-model files (images, videos)
-            res.set('Content-Type', media.mimeType);
-            res.set('Content-Disposition', `attachment; filename="${media.filename}"`);
-            res.set('Content-Length', media.data.length);
-            res.send(media.data);
         }
+
+        // For files stored in MongoDB directly
+        if (media.data) {
+            res.set('Content-Length', media.data.length);
+            return res.send(media.data);
+        }
+
+        // If we get here, something's wrong with the file storage
+        res.status(404).send('File data not found');
     } catch (error) {
         console.error(error);
         res.status(500).send('Server Error');

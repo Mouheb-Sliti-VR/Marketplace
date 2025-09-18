@@ -4,17 +4,18 @@ const User = require('../Models/userModel');
 const crypto = require('crypto');
 const path = require('path');
 const { getMediaUrl } = require('../utils/urlConfig');
+const { saveMedia, getMediaStream } = require('../services/gridfsService');
 
 // Generate unique secure IDs for files
 const generateSecureFileId = () => crypto.randomBytes(16).toString('hex');
 
-// Configure Multer with memory storage
+// Configure Multer with memory storage for small files and disk storage for large files
 const storage = multer.memoryStorage();
 
 // Define the upload middleware with file size limit and file type filtering
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB file size limit
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB file size limit
   fileFilter: (req, file, cb) => {
     console.log(`[Upload] Processing file: ${file.originalname}, MIME type: ${file.mimetype}`);
     
@@ -189,15 +190,37 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
 
   // Helper function to create media document
   const createMediaDoc = async (file, type) => {
-    const newMedia = new Media({
-      type: type,
-      filename: file.originalname,
-      size: file.size,
-      mimeType: file.mimetype,
-      data: file.buffer,
-      user: req.user._id // Set the user ID from the authenticated request
-    });
-    return await newMedia.save();
+    // Use GridFS for files larger than 16MB
+    if (file.size > 16 * 1024 * 1024) {
+      const fileId = await saveMedia(file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype,
+        metadata: {
+          type: type,
+          userId: req.user._id
+        }
+      });
+
+      const newMedia = new Media({
+        type: type,
+        filename: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+        gridFSId: fileId,
+        user: req.user._id
+      });
+      return await newMedia.save();
+    } else {
+      const newMedia = new Media({
+        type: type,
+        filename: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+        data: file.buffer,
+        user: req.user._id
+      });
+      return await newMedia.save();
+    }
   };
 
   // Function to handle media limits
@@ -226,6 +249,20 @@ const saveFileToDBAndUpdateUser = async (req, fieldName) => {
     }
   };
   
+  // Check if we have any files to process
+  if (!req.files && !req.file) {
+    console.log('[Media] No files to process, returning user data only');
+    return {
+      status: 'success',
+      message: 'No files to process',
+      data: {
+        _id: req.user._id,
+        email: req.user.email,
+        companyName: req.user.companyName
+      }
+    };
+  }
+
   // Handle profile update with optional logo
   if (isProfileUpdate) {
     console.log('[Media] Processing profile update');
