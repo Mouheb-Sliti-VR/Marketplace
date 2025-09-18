@@ -4,7 +4,6 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 const compression = require('compression');
-const { sizeLimiter } = require('./Middleware/limitMiddleware');
 
 const registerRoute = require("./Routes/AuthenticationRoute");
 const mediaRoute = require("./Routes/MediaRoute");
@@ -41,9 +40,8 @@ const MONGODB_URI = process.env.DB_URI;
 // Middleware
 app.use(cors({ origin: '*', credentials: true }));
 app.use(compression()); // Compress all responses
-app.use(express.json({ limit: '50mb' })); // Limit JSON payload size
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(sizeLimiter('50mb')); // Apply global size limit for non-multipart requests
+app.use(express.json({ limit: '200mb' })); // Increased JSON payload size limit
+app.use(express.urlencoded({ extended: true, limit: '200mb' })); // Increased URL-encoded payload size limit
 
 // Cache control for static files
 app.use((req, res, next) => {
