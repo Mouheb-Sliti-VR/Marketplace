@@ -41,9 +41,9 @@ const MONGODB_URI = process.env.DB_URI;
 // Middleware
 app.use(cors({ origin: '*', credentials: true }));
 app.use(compression()); // Compress all responses
-app.use(express.json({ limit: '25mb' })); // Limit JSON payload size
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
-app.use(sizeLimiter('10mb')); // Apply global size limit
+app.use(express.json({ limit: '50mb' })); // Limit JSON payload size
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(sizeLimiter('50mb')); // Apply global size limit for non-multipart requests
 
 // Cache control for static files
 app.use((req, res, next) => {

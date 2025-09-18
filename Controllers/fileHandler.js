@@ -14,7 +14,7 @@ const storage = multer.memoryStorage();
 // Define the upload middleware with file size limit and file type filtering
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 16 * 1024 * 1024 }, // 200 MB file size limit
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB file size limit
   fileFilter: (req, file, cb) => {
     console.log(`[Upload] Processing file: ${file.originalname}, MIME type: ${file.mimetype}`);
     
