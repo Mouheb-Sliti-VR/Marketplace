@@ -68,70 +68,55 @@ router.post("/register", authRateLimiter, validateSchema(schemas.register), asyn
       city: user.city
     }
   });
-  } catch (error) {
-    console.error("Registration failed with error:", error);
-    res.status(500).json({ message: "Registration failed" });
-  }
-});
+}));
 
-// Login route
-router.post("/login", async (req, res) => {
-  try {
-      console.log("Login request received:", req.body);
-      const { email, password } = req.body;
+// Login route with validation and rate limiting
+router.post("/login", authRateLimiter, validateSchema(schemas.login), asyncHandler(async (req, res) => {
+  logger.info("Login request received", { email: req.body.email });
 
-      console.log(`Looking up user with email: ${email}`);
-      const user = await User.findOne({ email });
+  const { email, password } = req.body;
 
-      if (!user) {
-          console.warn(`Login failed: User with email '${email}' not found.`);
-          return res.status(401).send("Invalid email or password");
-      }
-
-      console.log(`User found: ${user.email}, verifying password.`);
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-
-      if (!isPasswordValid) {
-          console.warn(`Login failed: Invalid password for user '${email}'.`);
-          return res.status(401).send("Invalid email or password");
-      }
-
-      console.log(`Password verified for user: ${email}. Generating token.`);
-      const token = jwt.sign(
-          { _id: user._id, email: user.email, companyName: user.companyName },
-          process.env.SECRET_KEY,
-          { expiresIn: '2w' } // Optional: Token expiration time
-      );
-
-    // Log all relevant information
-    console.info(`User logged in successfully: ${email}`);
-    console.info(`Company Name: ${user.companyName}`);
-    console.info(`Token: ${token}`);
-    console.info(`Zip Code: ${user.zipCode}`);
-    console.info(`Country: ${user.country}`);
-    console.info(`Address: ${user.address}`);
-    console.info(`City: ${user.city}`);
-
-    // Send response with all relevant information
-    return res.status(200).send({
-      message: `${user.companyName} has successfully connected with this token`,
-      token,
-      email: user.email,
-      companyName: user.companyName,
-      zipCode: user.zipCode,
-      country: user.country,
-      address: user.address,
-      city: user.city
-    });
-
-  } catch (error) {
-    logger.error("Login failed", { error: error.message, email: req.body.email });
-    return res.status(500).json({ 
+  // Find user by email
+  const user = await User.findOne({ email });
+  if (!user) {
+    logger.warn(`Login failed: User not found`, { email });
+    return res.status(401).json({ 
       status: 'error',
-      message: "Login failed",
-      ...(process.env.NODE_ENV === 'development' && { details: error.message })
+      message: "Invalid email or password" 
     });
   }
+
+  logger.debug(`User found, verifying password`, { email });
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+
+  if (!isPasswordValid) {
+    logger.warn(`Login failed: Invalid password`, { email });
+    return res.status(401).json({ 
+      status: 'error',
+      message: "Invalid email or password" 
+    });
+  }
+
+  logger.debug(`Password verified, generating token`, { email });
+  const token = jwt.sign(
+    { _id: user._id, email: user.email, companyName: user.companyName },
+    process.env.SECRET_KEY,
+    { expiresIn: '15d' }
+  );
+
+  logger.info(`User logged in successfully`, { email, userId: user._id });
+
+  return res.status(200).json({
+    status: 'success',
+    message: `${user.companyName} has successfully connected`,
+    token,
+    email: user.email,
+    companyName: user.companyName,
+    zipCode: user.zipCode,
+    country: user.country,
+    address: user.address,
+    city: user.city
+  });
 }));
 
 router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) => {

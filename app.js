@@ -99,16 +99,16 @@ const connectDB = async () => {
           socketTimeoutMS: 45000,
           serverSelectionTimeoutMS: 5000,
         });
-        logger.info("✅ Connected to MongoDB");
+        logger.success("Connected to MongoDB");
         return;
       } catch (err) {
-        logger.error(`❌ MongoDB connection attempt ${i + 1} failed:`, err.message);
+        logger.error(`MongoDB connection attempt ${i + 1} failed: ${err.message}`);
         if (i < retries - 1) {
           const delay = Math.min(1000 * Math.pow(2, i), 10000);
           logger.info(`Retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          logger.error("Failed to connect to MongoDB after multiple attempts");
+          logger.fail("Failed to connect to MongoDB after multiple attempts");
           process.exit(1);
         }
       }
@@ -120,15 +120,15 @@ const connectDB = async () => {
 
 // MongoDB event handlers
 mongoose.connection.on('disconnected', () => {
-  logger.warn('MongoDB disconnected');
+  logger.warn('⚠️  MongoDB disconnected');
 });
 
 mongoose.connection.on('reconnected', () => {
-  logger.info('MongoDB reconnected');
+  logger.success('MongoDB reconnected');
 });
 
 mongoose.connection.on('error', (err) => {
-  logger.error('MongoDB error:', err);
+  logger.fail('MongoDB error', { error: err.message });
 });
 
 // Connect to database
@@ -166,33 +166,36 @@ app.use(errorHandler);
 
 // Graceful shutdown
 const gracefulShutdown = async (signal) => {
-  logger.info(`${signal} received. Starting graceful shutdown...`);
+  logger.warn(`${signal} received. Starting graceful shutdown...`);
   
   server.close(async () => {
     logger.info('HTTP server closed');
     
     try {
       await mongoose.connection.close();
-      logger.info('MongoDB connection closed');
+      logger.success('MongoDB connection closed');
       process.exit(0);
     } catch (err) {
-      logger.error('Error during graceful shutdown:', err);
+      logger.fail('Error during graceful shutdown', { error: err.message });
       process.exit(1);
     }
   });
   
   // Force shutdown after 30 seconds
   setTimeout(() => {
-    logger.error('Forced shutdown after timeout');
+    logger.fail('Forced shutdown after timeout');
     process.exit(1);
   }, 30000);
 };
 
 // Start Server
 const server = app.listen(PORT, () => {
-  logger.info(`🚀 Marketplace running on http://localhost:${PORT}`);
+  console.log(''); // Empty line for readability
+  logger.start(`Marketplace running on http://localhost:${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`API Base Path: ${API_BASE_PATH || '/'}`);
+  logger.info(`Log Level: ${process.env.LOG_LEVEL || 'info'}`);
+  console.log(''); // Empty line for readability
 });
 
 // Handle process termination
