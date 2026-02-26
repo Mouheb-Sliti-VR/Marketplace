@@ -1,17 +1,26 @@
 // authMiddleware.js
 const jwt = require('jsonwebtoken');
 const User = require('../Models/userModel');
+const logger = require('../utils/logger');
 
 async function authenticateToken(req, res, next) {
     const bearerHeader = req.headers['authorization'];
     
     if (!bearerHeader) {
-        return res.status(401).json({ error: 'No token provided' });
+        logger.warn('Authentication failed: No token provided', { ip: req.ip });
+        return res.status(401).json({ 
+            status: 'error',
+            error: 'No token provided' 
+        });
     }
 
     const token = bearerHeader.split(' ')[1];
     if (!token) {
-        return res.status(401).json({ error: 'Invalid token format' });
+        logger.warn('Authentication failed: Invalid token format', { ip: req.ip });
+        return res.status(401).json({ 
+            status: 'error',
+            error: 'Invalid token format' 
+        });
     }
 
     try {
@@ -27,7 +36,11 @@ async function authenticateToken(req, res, next) {
             .populate('model3d');
 
         if (!user) {
-            return res.status(401).json({ error: 'User not found' });
+            logger.warn('Authentication failed: User not found', { userId: decoded._id });
+            return res.status(401).json({ 
+                status: 'error',
+                error: 'User not found' 
+            });
         }
 
         // Attach both the decoded token and full user data to the request
@@ -36,19 +49,25 @@ async function authenticateToken(req, res, next) {
 
         next();
     } catch (err) {
-        console.error('Token verification error:', err);
+        logger.error('Token verification error', { error: err.message, ip: req.ip });
         if (err.name === 'TokenExpiredError') {
-            return res.status(401).json({ error: 'Access token expired' });
+            return res.status(401).json({ 
+                status: 'error',
+                error: 'Access token expired' 
+            });
         }
-        return res.status(401).json({ error: 'Invalid token' });
+        return res.status(401).json({ 
+            status: 'error',
+            error: 'Invalid token' 
+        });
     }
 }
 
 function generateToken(user) {
   return jwt.sign(
-      { _id: user._id, email: user.email, companyName: user.companyName }, // Ensure `_id` is included
+      { _id: user._id, email: user.email, companyName: user.companyName },
       process.env.SECRET_KEY,
-      { expiresIn: '15d' } // Set token expiration
+      { expiresIn: '15d' }
   );
 }
 

@@ -2,176 +2,80 @@ const express = require('express');
 const router = express.Router();
 const { getCatalogItems, validateOrder, confirmOrder, getSubscriptions } = require('../services/catalogService');
 const { authenticateToken } = require('../Middleware/authMiddleware');
+const { validateSchema, schemas } = require('../utils/validation');
+const { asyncHandler } = require('../Middleware/errorHandler');
+const { apiRateLimiter } = require('../Middleware/securityMiddleware');
+const logger = require('../utils/logger');
+
+// Apply rate limiting to all catalog routes
+router.use(apiRateLimiter);
 
 // Route to get all catalog items
-router.get('/items', async (req, res) => {
-    try {
-        const items = await getCatalogItems();
-        res.json(items);
-    } catch (error) {
-        console.error('Error fetching catalog items:', error);
-        res.status(500).json({ error: 'Failed to fetch catalog items' });
-    }
-});
+router.get('/items', asyncHandler(async (req, res) => {
+    const items = await getCatalogItems();
+    res.json({
+        status: 'success',
+        data: items
+    });
+}));
 
-// Route to validate an order
-router.post('/validate', authenticateToken, async (req, res) => {
-    try {
-        const { selections } = req.body;
-        
-        // Check if selections array exists and has at least one item
-        if (!selections || !Array.isArray(selections) || selections.length === 0) {
-            return res.status(400).json({ 
-                error: 'Invalid request body. Required: selections array with at least one item' 
-            });
-        }
-
-        // Get the first selection (we currently only support one selection)
-        const selection = selections[0];
-        if (!selection.offeringId) {
-            return res.status(400).json({ 
-                error: 'Invalid selection. Required: offeringId' 
-            });
-        }
-
-        const selectedOfferId = selection.offeringId;
-        const selectedImagesCount = selection.selectedImagesCount;
-        const selectedVideosCount = selection.selectedVideosCount;
-        const selectedModelsCount = selection.selectedModelsCount;
-
-        // Get offer type from the ID
-        let offerType;
-        if (selectedOfferId.startsWith('IMG_ADS_OFFER_')) {
-            offerType = 'IMG';
-        } else if (selectedOfferId.startsWith('VIDEO_ADS_OFFER_')) {
-            offerType = 'VIDEO';
-        } else if (selectedOfferId.startsWith('3D_MODEL_ADS_OFFER_')) {
-            offerType = '3D_MODEL';
-        } else if (selectedOfferId.startsWith('MIXED_ADS_OFFER_')) {
-            offerType = 'MIXED';
-        } else {
-            return res.status(400).json({ 
-                error: 'Invalid offer type' 
-            });
-        }
-        
-        // Validate based on offer type
-        switch(offerType) {
-            case 'IMG':
-                if (!selectedImagesCount) {
-                    return res.status(400).json({ 
-                        error: 'For image offers, selectedImagesCount is required' 
-                    });
-                }
-                break;
-            case 'VIDEO':
-                if (!selectedVideosCount) {
-                    return res.status(400).json({ 
-                        error: 'For video offers, selectedVideosCount is required' 
-                    });
-                }
-                break;
-            case '3D_MODEL':
-                if (!selectedModelsCount) {
-                    return res.status(400).json({ 
-                        error: 'For 3D model offers, selectedModelsCount is required' 
-                    });
-                }
-                break;
-            case 'MIXED':
-                if (!selectedImagesCount && !selectedVideosCount && !selectedModelsCount) {
-                    return res.status(400).json({ 
-                        error: 'For mixed offers, at least one of selectedImagesCount, selectedVideosCount, or selectedModelsCount is required' 
-                    });
-                }
-                // Validate that the total count makes sense
-                const total = (selectedImagesCount || 0) + (selectedVideosCount || 0) + (selectedModelsCount || 0);
-                if (total === 0) {
-                    return res.status(400).json({
-                        error: 'For mixed offers, the total count of selected items must be greater than 0'
-                    });
-                }
-                break;
-            default:
-                return res.status(400).json({ 
-                    error: 'Invalid offer type' 
-                });
-        }
-
-        // Create validation data keeping the original selections format
-        const validationData = {
-            selections: [{
-                offeringId: selectedOfferId,
-                ...(selectedImagesCount && { selectedImagesCount: parseInt(selectedImagesCount, 10) }),
-                ...(selectedVideosCount && { selectedVideosCount: parseInt(selectedVideosCount, 10) }),
-                ...(selectedModelsCount && { selectedModelsCount: parseInt(selectedModelsCount, 10) })
-            }]
-        };
-
-        // Forward the token from the authenticated request
-        const validationResult = await validateOrder(validationData, req.token);
-        res.json(validationResult);
-    } catch (error) {
-        console.error('Error validating order:', error);
-        res.status(error.response?.status || 500).json({ 
-            error: error.message || 'Failed to validate order' 
-        });
-    }
-});
+// Route to validate an order with proper validation
+router.post('/validate', authenticateToken, validateSchema(schemas.validateOrder), asyncHandler(async (req, res) => {
+    const { selections } = req.body;
+    
+    logger.info('Order validation request', { 
+        userId: req.user._id, 
+        offeringId: selections[0]?.offeringId 
+    });
+    
+    const result = await validateOrder(req.body, req.headers.authorization);
+    
+    logger.info('Order validated successfully', { 
+        userId: req.user._id, 
+        quoteId: result.quoteId 
+    });
+    
+    res.json({
+        status: 'success',
+        data: result
+    });
+}));
 
 // Route to confirm an order
-router.post('/confirm', authenticateToken, async (req, res) => {
-    try {
-        const { quoteId } = req.body;
-        
-        // Validate required fields
-        if (!quoteId) {
-            return res.status(400).json({ 
-                error: 'Invalid request body. Required: quoteId' 
-            });
-        }
-
-        // Make sure we have a token
-        if (!req.token) {
-            return res.status(401).json({ error: 'No authentication token provided' });
-        }
-
-        // Ensure the token is properly formatted with 'Bearer'
-        const token = req.token.startsWith('Bearer ') ? req.token : `Bearer ${req.token}`;
-        
-        // Forward the token from the authenticated request
-        const confirmationResult = await confirmOrder({ quoteId }, token);
-        res.json(confirmationResult);
-    } catch (error) {
-        console.error('Error confirming order:', error);
-        // Send a more detailed error response
-        res.status(error.response?.status || 500).json({ 
-            error: 'Failed to confirm order',
-            details: error.message,
-            ...(error.response?.data && { responseData: error.response.data })
+router.post('/confirm', authenticateToken, asyncHandler(async (req, res) => {
+    const { quoteId } = req.body;
+    
+    if (!quoteId) {
+        return res.status(400).json({ 
+            status: 'error',
+            error: 'Invalid request body. Required: quoteId' 
         });
     }
-});
+
+    logger.info('Order confirmation request', { userId: req.user._id, quoteId });
+
+    const token = req.token.startsWith('Bearer ') ? req.token : `Bearer ${req.token}`;
+    const confirmationResult = await confirmOrder({ quoteId }, token);
+    
+    logger.info('Order confirmed successfully', { userId: req.user._id, quoteId });
+    
+    res.json({
+        status: 'success',
+        data: confirmationResult
+    });
+}));
 
 // Route to get subscriptions
-router.get('/subscriptions', authenticateToken, async (req, res) => {
-    try {
-        if (!req.token) {
-            return res.status(401).json({ error: 'No token provided' });
-        }
-
-        // Get the token without 'Bearer ' prefix if it exists
-        const token = req.token.replace('Bearer ', '');
-        
-        // Forward the cleaned token from the authenticated request
-        const subscriptions = await getSubscriptions(token);
-        res.json(subscriptions);
-    } catch (error) {
-        console.error('Error fetching subscriptions:', error);
-        res.status(error.response?.status || 500).json({ 
-            error: error.message || 'Failed to fetch subscriptions' 
-        });
-    }
-});
+router.get('/subscriptions', authenticateToken, asyncHandler(async (req, res) => {
+    logger.info('Fetching subscriptions', { userId: req.user._id });
+    
+    const token = req.token.replace('Bearer ', '');
+    const subscriptions = await getSubscriptions(token);
+    
+    res.json({
+        status: 'success',
+        data: subscriptions
+    });
+}));
 
 module.exports = router;

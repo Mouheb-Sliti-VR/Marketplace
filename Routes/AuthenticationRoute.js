@@ -5,79 +5,69 @@ const jwt = require("jsonwebtoken");
 const User = require("../Models/userModel");
 const Media = require("../Models/mediaModel");
 const { getMediaUrl } = require('../utils/urlConfig');
-const validator = require('validator');
 const axios = require('axios');
 const FormData = require('form-data');
-const {authenticateToken} = require ('../Middleware/authMiddleware.js');
-const { getLatestMediaURLsForUser,uploadFile,saveFileToDBAndUpdateUser } = require('../Controllers/fileHandler.js'); 
+const { authenticateToken } = require('../Middleware/authMiddleware.js');
+const { getLatestMediaURLsForUser, uploadFile, saveFileToDBAndUpdateUser } = require('../Controllers/fileHandler.js');
+const { authRateLimiter } = require('../Middleware/securityMiddleware');
+const { validateSchema, schemas } = require('../utils/validation');
+const { asyncHandler } = require('../Middleware/errorHandler');
+const logger = require('../utils/logger');
 
-// Registration route
-router.post("/register", async (req, res) => {
-  try {
-    console.log("Register request received:", req.body);
+// Registration route with validation and rate limiting
+router.post("/register", authRateLimiter, validateSchema(schemas.register), asyncHandler(async (req, res) => {
+  logger.info("Register request received", { email: req.body.email });
 
-    const { email, companyName, password } = req.body;
+  const { email, companyName, password, address, zipCode, city, country } = req.body;
 
-    // Validate email format using regular expression or a validator library
-    if (!validator.isEmail(email)) {
-      console.warn(`Registration failed: Invalid email format: ${email}`);
-      return res.status(400).json({ message: "Invalid email format" });
-    }
-
-    // Check if the email is already registered
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      console.warn(`Registration failed: Email '${email}' already exists.`);
-      return res.status(400).json({ message: "Email already exists" });
-    }
-
-    // Ensure that password is provided and has a minimum length
-    if (!password) {
-      console.warn("Registration failed: Password is missing.");
-      return res.status(400).json({ message: "Password is required" });
-    }
-
-    if (password.length < 6) {
-      console.warn(`Registration failed: Password '${password}' is too short.`);
-      return res.status(400).json({ message: "Password must be at least 6 characters long" });
-    }
-
-    console.log(`Hashing password for user: ${email}`);
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    console.log(`Creating user with email: ${email}`);
-    const user = new User({ 
-      email, 
-      companyName, 
-      password: hashedPassword, 
-      zipCode:"", 
-      country:"", 
-      address:"", 
-      city:"", 
+  // Check if the email is already registered
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    logger.warn(`Registration failed: Email already exists`, { email });
+    return res.status(400).json({ 
+      status: 'error',
+      message: "Email already exists" 
     });
-    await user.save();
+  }
 
-    // Generate token after user registration
-    const token = jwt.sign(
-      { _id: user._id, email: user.email, companyName: user.companyName },
-      process.env.SECRET_KEY,
-      { expiresIn: '2w' } // Optional: Token expiration time
-    );
+  // Hash password with 12 rounds for better security
+  logger.debug(`Hashing password for user: ${email}`);
+  const saltRounds = 12;
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    console.info(`User registered successfully: ${email}`);
-    res.status(201).json({ 
-      message: "User registered successfully", 
-      token,
-      user: {
-        email: user.email,
-        companyName: user.companyName,
-        zipCode: user.zipCode,
-        country: user.country,
-        address: user.address,
-        city: user.city
-      }
-    });
+  logger.debug(`Creating user with email: ${email}`);
+  const user = new User({ 
+    email, 
+    companyName, 
+    password: hashedPassword, 
+    zipCode: zipCode || "", 
+    country: country || "", 
+    address: address || "", 
+    city: city || "", 
+  });
+  await user.save();
+
+  // Generate token after user registration
+  const token = jwt.sign(
+    { _id: user._id, email: user.email, companyName: user.companyName },
+    process.env.SECRET_KEY,
+    { expiresIn: '15d' }
+  );
+
+  logger.info(`User registered successfully`, { email, userId: user._id });
+  res.status(201).json({ 
+    status: 'success',
+    message: "User registered successfully", 
+    token,
+    user: {
+      email: user.email,
+      companyName: user.companyName,
+      zipCode: user.zipCode,
+      country: user.country,
+      address: user.address,
+      city: user.city
+    }
+  });
   } catch (error) {
     console.error("Registration failed with error:", error);
     res.status(500).json({ message: "Registration failed" });
@@ -135,10 +125,14 @@ router.post("/login", async (req, res) => {
     });
 
   } catch (error) {
-      console.error("Login failed with error:", error);
-      return res.status(500).send("Login failed");
+    logger.error("Login failed", { error: error.message, email: req.body.email });
+    return res.status(500).json({ 
+      status: 'error',
+      message: "Login failed",
+      ...(process.env.NODE_ENV === 'development' && { details: error.message })
+    });
   }
-});
+}));
 
 router.post("/updateProfile", authenticateToken, uploadFile, async (req, res) => {
   try {
